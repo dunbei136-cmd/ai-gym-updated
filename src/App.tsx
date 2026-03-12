@@ -35,6 +35,13 @@ function getBookingKey(booking: Pick<BookingRecord, 'phone' | 'email'>) {
   return `${booking.phone}-${booking.email}`
 }
 
+function getBookingDateOnly(value: string) {
+  const matched = value.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+/)
+  if (!matched) return ''
+  const [, year, month, day] = matched
+  return `${year}-${month}-${day}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -80,6 +87,8 @@ function App() {
   const [adminQuery, setAdminQuery] = useState('')
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
   const [adminSort, setAdminSort] = useState<'最新優先' | '最舊優先' | '姓名 A-Z'>('最新優先')
+  const [adminStartDate, setAdminStartDate] = useState('')
+  const [adminEndDate, setAdminEndDate] = useState('')
   const [adminPage, setAdminPage] = useState(1)
   const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
   const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
@@ -156,7 +165,11 @@ function App() {
         booking.email.toLowerCase().includes(keyword) ||
         booking.className.toLowerCase().includes(keyword)
 
-      return matchStatus && matchKeyword
+      const bookingDateOnly = getBookingDateOnly(booking.date)
+      const matchStartDate = !adminStartDate || (bookingDateOnly && bookingDateOnly >= adminStartDate)
+      const matchEndDate = !adminEndDate || (bookingDateOnly && bookingDateOnly <= adminEndDate)
+
+      return matchStatus && matchKeyword && matchStartDate && matchEndDate
     })
 
     const sorted = [...filtered]
@@ -168,11 +181,11 @@ function App() {
 
     sorted.sort((a, b) => a.date.localeCompare(b.date))
     return adminSort === '最舊優先' ? sorted : sorted.reverse()
-  }, [adminQuery, adminSort, adminStatus, bookings])
+  }, [adminEndDate, adminQuery, adminSort, adminStartDate, adminStatus, bookings])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminQuery, adminSort, adminStatus])
+  }, [adminEndDate, adminQuery, adminSort, adminStartDate, adminStatus])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
@@ -863,6 +876,8 @@ function App() {
               <option>最舊優先</option>
               <option>姓名 A-Z</option>
             </select>
+            <input type="date" value={adminStartDate} onChange={(event) => setAdminStartDate(event.target.value)} />
+            <input type="date" value={adminEndDate} onChange={(event) => setAdminEndDate(event.target.value)} />
             <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
               匯出 CSV
             </button>

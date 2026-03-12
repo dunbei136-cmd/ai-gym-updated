@@ -533,7 +533,7 @@ a {
 
 .admin-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px 180px 150px;
+  grid-template-columns: minmax(0, 1fr) 180px 180px 170px 170px 150px;
   gap: 12px;
 }
 
