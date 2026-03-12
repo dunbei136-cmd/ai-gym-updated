@@ -46,8 +46,12 @@ function writeDeletedBookingKeys(keys: string[]) {
 function listDemoBookings() {
   const deletedKeys = new Set(readDeletedBookingKeys())
   const stored = readStoredBookings()
+  const storedKeys = new Set(stored.map((item) => getBookingKey(item.phone, item.email)))
   const filteredSeed = seedBookingRecords
-    .filter((item) => !deletedKeys.has(getBookingKey(item.phone, item.email)))
+    .filter((item) => {
+      const key = getBookingKey(item.phone, item.email)
+      return !deletedKeys.has(key) && !storedKeys.has(key)
+    })
     .map((item) => normalizeBooking(item))
 
   return [...stored, ...filteredSeed]
