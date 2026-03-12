@@ -117,6 +117,61 @@ function parseActivityLog(value) {
   }
 }
 
+function formatLogTimestamp(date = new Date()) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function prependActivityEntries(existing, entries) {
+  const normalizedExisting = Array.isArray(existing) ? existing : []
+  const dedupedEntries = entries.filter((entry, index) => entry && entries.indexOf(entry) === index)
+  return [...dedupedEntries, ...normalizedExisting.filter((entry) => !dedupedEntries.includes(entry))]
+}
+
+function buildDetailChangeEntries(existing, patch, now = new Date()) {
+  if (!existing) return Array.isArray(patch.activityLog) ? patch.activityLog : []
+
+  const nextEntries = []
+  const stamp = formatLogTimestamp(now)
+
+  if (existing.stage !== patch.stage) {
+    nextEntries.push(`${stamp} 名單階段改為 ${patch.stage}`)
+  }
+
+  if (existing.assignee !== patch.assignee) {
+    nextEntries.push(`${stamp} 負責人改為 ${patch.assignee}`)
+  }
+
+  if (existing.nextFollowUpAt !== patch.nextFollowUpAt) {
+    nextEntries.push(patch.nextFollowUpAt ? `${stamp} 設定下次追蹤 ${patch.nextFollowUpAt}` : `${stamp} 清除下次追蹤`)
+  }
+
+  if (existing.date !== patch.date) {
+    nextEntries.push(`${stamp} 調整預約時間為 ${patch.date}`)
+  }
+
+  if (existing.trainer !== patch.trainer) {
+    nextEntries.push(`${stamp} 指派教練改為 ${patch.trainer}`)
+  }
+
+  if (existing.className !== patch.className) {
+    nextEntries.push(`${stamp} 課程改為 ${patch.className}`)
+  }
+
+  if (existing.source !== patch.source) {
+    nextEntries.push(`${stamp} 名單來源改為 ${patch.source}`)
+  }
+
+  const patchLog = Array.isArray(patch.activityLog) ? patch.activityLog : []
+  return prependActivityEntries(patchLog, nextEntries)
+}
+
 function normalizeRow(row) {
   if (!row) return null
   return {
@@ -259,16 +314,27 @@ export function updateBookingStatus(phone, email, status) {
       ? existing.stage
       : resolveStageFromStatus(status)
 
+  const stamp = formatLogTimestamp(new Date())
+  const activityLog = prependActivityEntries(existing.activityLog, [
+    `${stamp} 狀態改為 ${status}`,
+    ...(existing.stage !== nextStage ? [`${stamp} 名單階段改為 ${nextStage}`] : []),
+  ])
+
   db.prepare(`
     UPDATE bookings
-    SET status = ?, stage = ?, updatedAt = CURRENT_TIMESTAMP
+    SET status = ?, stage = ?, activityLog = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE phone = ? AND lower(email) = lower(?)
-  `).run(status, nextStage, phone.trim(), email.trim().toLowerCase())
+  `).run(status, nextStage, JSON.stringify(activityLog), phone.trim(), email.trim().toLowerCase())
 
   return lookupBooking(phone, email)
 }
 
 export function updateBookingDetails(phone, email, patch) {
+  const existing = lookupBooking(phone, email)
+  if (!existing) return null
+
+  const activityLog = buildDetailChangeEntries(existing, patch)
+
   db.prepare(`
     UPDATE bookings
     SET name = ?, className = ?, trainer = ?, date = ?, notes = ?, stage = ?, source = ?, assignee = ?, nextFollowUpAt = ?, activityLog = ?, updatedAt = CURRENT_TIMESTAMP
@@ -283,7 +349,7 @@ export function updateBookingDetails(phone, email, patch) {
     patch.source ?? '網站表單',
     patch.assignee ?? '未指派',
     patch.nextFollowUpAt ?? '',
-    JSON.stringify(Array.isArray(patch.activityLog) ? patch.activityLog : []),
+    JSON.stringify(activityLog),
     phone.trim(),
     email.trim().toLowerCase(),
   )

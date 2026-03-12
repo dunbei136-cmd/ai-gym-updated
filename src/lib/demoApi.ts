@@ -122,6 +122,63 @@ function normalizeBooking(item: Partial<BookingRecord> & Record<string, unknown>
   }
 }
 
+function formatLogTimestamp(date = new Date()) {
+  return new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+function prependActivityEntries(existing: string[], entries: string[]) {
+  const normalizedExisting = Array.isArray(existing) ? existing : []
+  const dedupedEntries = entries.filter((entry, index) => entry && entries.indexOf(entry) === index)
+  return [...dedupedEntries, ...normalizedExisting.filter((entry) => !dedupedEntries.includes(entry))]
+}
+
+function buildDetailChangeEntries(existing: BookingRecord | undefined, patch: BookingDetailPatch, now: Date) {
+  if (!existing) return Array.isArray(patch.activityLog) ? patch.activityLog : []
+
+  const nextEntries: string[] = []
+  const stamp = formatLogTimestamp(now)
+
+  if (existing.stage !== patch.stage) {
+    nextEntries.push(`${stamp} 名單階段改為 ${patch.stage}`)
+  }
+
+  if (existing.assignee !== patch.assignee) {
+    nextEntries.push(`${stamp} 負責人改為 ${patch.assignee}`)
+  }
+
+  if (existing.nextFollowUpAt !== patch.nextFollowUpAt) {
+    nextEntries.push(
+      patch.nextFollowUpAt ? `${stamp} 設定下次追蹤 ${patch.nextFollowUpAt}` : `${stamp} 清除下次追蹤`,
+    )
+  }
+
+  if (existing.date !== patch.date) {
+    nextEntries.push(`${stamp} 調整預約時間為 ${patch.date}`)
+  }
+
+  if (existing.trainer !== patch.trainer) {
+    nextEntries.push(`${stamp} 指派教練改為 ${patch.trainer}`)
+  }
+
+  if (existing.className !== patch.className) {
+    nextEntries.push(`${stamp} 課程改為 ${patch.className}`)
+  }
+
+  if (existing.source !== patch.source) {
+    nextEntries.push(`${stamp} 名單來源改為 ${patch.source}`)
+  }
+
+  const patchLog = Array.isArray(patch.activityLog) ? patch.activityLog : []
+  return prependActivityEntries(patchLog, nextEntries)
+}
+
 function buildAssistantReply(message: string) {
   const normalized = message.trim().toLowerCase()
 
@@ -208,15 +265,21 @@ export const demoApi: GymApi = {
       )
 
     const now = new Date().toISOString()
+    const nextStage =
+      existing && (existing.stage === '流失' || existing.stage === '已成交')
+        ? existing.stage
+        : resolveStageFromStatus(status)
+
     const updated: BookingRecord = normalizeBooking(
       existing
         ? {
             ...existing,
             status,
-            stage:
-              existing.stage === '流失' || existing.stage === '已成交'
-                ? existing.stage
-                : resolveStageFromStatus(status),
+            stage: nextStage,
+            activityLog: prependActivityEntries(existing.activityLog, [
+              `${formatLogTimestamp(new Date(now))} 狀態改為 ${status}`,
+              ...(existing.stage !== nextStage ? [`${formatLogTimestamp(new Date(now))} 名單階段改為 ${nextStage}`] : []),
+            ]),
             updatedAt: now,
           }
         : {
@@ -265,10 +328,16 @@ export const demoApi: GymApi = {
         (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
       )
 
-    const now = new Date().toISOString()
+    const now = new Date()
+    const nowIso = now.toISOString()
     const updated: BookingRecord = normalizeBooking(
       existing
-        ? { ...existing, ...patch, updatedAt: now }
+        ? {
+            ...existing,
+            ...patch,
+            activityLog: buildDetailChangeEntries(existing, patch, now),
+            updatedAt: nowIso,
+          }
         : {
             name: patch.name,
             phone: normalizedPhone,
@@ -282,9 +351,9 @@ export const demoApi: GymApi = {
             source: patch.source,
             assignee: patch.assignee,
             nextFollowUpAt: patch.nextFollowUpAt,
-            activityLog: patch.activityLog ?? [],
-            createdAt: now,
-            updatedAt: now,
+            activityLog: prependActivityEntries(patch.activityLog ?? [], [`${formatLogTimestamp(now)} 建立名單`]),
+            createdAt: nowIso,
+            updatedAt: nowIso,
           },
     )
 
