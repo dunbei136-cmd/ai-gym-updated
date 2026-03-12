@@ -696,6 +696,10 @@ a {
   background: rgba(86, 160, 255, 0.08);
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
 .booking-table tbody tr:last-child td {
   border-bottom: none;
 }

@@ -367,10 +367,10 @@ function App() {
     }
   }
 
-  const exportBookingsCsv = () => {
+  const downloadBookingsCsv = (targetBookings: BookingRecord[], filePrefix: string) => {
     const rows = [
-      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態'],
-      ...filteredBookings.map((booking) => [
+      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態', '備註'],
+      ...targetBookings.map((booking) => [
         booking.name,
         booking.phone,
         booking.email,
@@ -378,6 +378,7 @@ function App() {
         booking.trainer,
         booking.date,
         booking.status,
+        booking.notes,
       ]),
     ]
 
@@ -389,9 +390,18 @@ function App() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `pulsefit-bookings-${Date.now()}.csv`
+    link.download = `${filePrefix}-${Date.now()}.csv`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  const exportBookingsCsv = () => {
+    downloadBookingsCsv(filteredBookings, 'pulsefit-bookings')
+  }
+
+  const exportSelectedBookingsCsv = () => {
+    const targetBookings = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
+    downloadBookingsCsv(targetBookings, 'pulsefit-selected-bookings')
   }
 
   const changeBookingStatus = async (
@@ -1018,6 +1028,9 @@ function App() {
             <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
               {busy ? '批次更新中...' : '批次改狀態'}
             </button>
+            <button className="secondary-btn batch-action-btn" onClick={exportSelectedBookingsCsv} disabled={selectedBookingKeys.length === 0}>
+              匯出已勾選
+            </button>
             <button className="danger-btn batch-action-btn" onClick={() => void deleteSelectedBookings()} disabled={busy || selectedBookingKeys.length === 0}>
               {busy ? '批次處理中...' : '批次刪除'}
             </button>
@@ -1066,12 +1079,20 @@ function App() {
                         const isSelectedRow = selectedBooking?.phone === booking.phone && selectedBooking?.email === booking.email
 
                         return (
-                          <tr key={bookingKey} className={isSelectedRow ? 'active-row' : ''}>
+                          <tr
+                            key={bookingKey}
+                            className={isSelectedRow ? 'active-row clickable-row' : 'clickable-row'}
+                            onClick={() => {
+                              setSelectedBooking(booking)
+                              setError('')
+                            }}
+                          >
                             <td className="number-column">{(safeAdminPage - 1) * adminPageSize + index + 1}</td>
                             <td className="checkbox-column">
                               <input
                                 type="checkbox"
                                 checked={selectedBookingKeys.includes(bookingKey)}
+                                onClick={(event) => event.stopPropagation()}
                                 onChange={() => toggleBookingSelection(booking)}
                               />
                             </td>
@@ -1089,13 +1110,13 @@ function App() {
                               <div className="booking-table-stack">
                                 <div className="contact-row">
                                   <span>{booking.phone}</span>
-                                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('手機', booking.phone)}>
+                                  <button className="mini-copy-btn" onClick={(event) => { event.stopPropagation(); void copyToClipboard('手機', booking.phone) }}>
                                     複製
                                   </button>
                                 </div>
                                 <div className="contact-row">
                                   <span>{booking.email}</span>
-                                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('Email', booking.email)}>
+                                  <button className="mini-copy-btn" onClick={(event) => { event.stopPropagation(); void copyToClipboard('Email', booking.email) }}>
                                     複製
                                   </button>
                                 </div>
@@ -1106,6 +1127,7 @@ function App() {
                               <select
                                 value={booking.status}
                                 disabled={isUpdating}
+                                onClick={(event) => event.stopPropagation()}
                                 onChange={(event) =>
                                   void changeBookingStatus(
                                     booking.phone,
@@ -1122,7 +1144,8 @@ function App() {
                             <td>
                               <button
                                 className="detail-link"
-                                onClick={() => {
+                                onClick={(event) => {
+                                  event.stopPropagation()
                                   setSelectedBooking(booking)
                                   setError('')
                                 }}
