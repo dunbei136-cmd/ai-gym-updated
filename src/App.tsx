@@ -415,6 +415,24 @@ function App() {
     downloadBookingsCsv(targetBookings, 'pulsefit-selected-bookings')
   }
 
+  const copySelectedContacts = async (field: 'phone' | 'email', label: string) => {
+    const targetBookings = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
+    const uniqueValues = [...new Set(targetBookings.map((booking) => booking[field]).filter(Boolean))]
+
+    if (uniqueValues.length === 0) {
+      setError(`目前沒有可複製的${label}`)
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(uniqueValues.join('\n'))
+      setError('')
+      setNotice(`已複製 ${uniqueValues.length} 筆${label}`)
+    } catch {
+      setError(`複製${label}失敗，請稍後再試`)
+    }
+  }
+
   const changeBookingStatus = async (
     phone: string,
     email: string,
@@ -1051,6 +1069,12 @@ function App() {
             </button>
             <button className="secondary-btn batch-mini-btn" onClick={clearSelectedBookings} disabled={selectedBookingKeys.length === 0}>
               清空勾選
+            </button>
+            <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('phone', '手機')} disabled={selectedBookingKeys.length === 0}>
+              複製手機
+            </button>
+            <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('email', 'Email')} disabled={selectedBookingKeys.length === 0}>
+              複製 Email
             </button>
             <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
             <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingRecord['status'])}>
