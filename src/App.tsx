@@ -73,7 +73,9 @@ function App() {
   const [lookupResult, setLookupResult] = useState<BookingRecord | null>(null)
   const [lookupTouched, setLookupTouched] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [loadingBookings, setLoadingBookings] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [updatingKey, setUpdatingKey] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null)
   const [detailForm, setDetailForm] = useState<BookingDetailPatch>({
@@ -94,7 +96,12 @@ function App() {
   const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
 
   useEffect(() => {
-    void api.listBookings().then(setBookings).catch(() => setError('載入 booking 資料失敗'))
+    setLoadingBookings(true)
+    void api
+      .listBookings()
+      .then(setBookings)
+      .catch(() => setError('載入 booking 資料失敗'))
+      .finally(() => setLoadingBookings(false))
   }, [])
 
   useEffect(() => {
@@ -245,6 +252,7 @@ function App() {
 
     setBusy(true)
     setError('')
+    setNotice('')
 
     try {
       const booking = await api.createBooking(form)
@@ -261,6 +269,7 @@ function App() {
           content: `已為 ${booking.name} 建立 demo 預約。你現在可以直接到 Booking Lookup 用 ${booking.phone} + ${booking.email} 查詢。`,
         },
       ])
+      setNotice(`已建立 ${booking.name} 的 booking`)
     } catch {
       setError('建立預約失敗，請稍後再試')
     } finally {
@@ -276,6 +285,7 @@ function App() {
 
     setBusy(true)
     setError('')
+    setNotice('')
 
     try {
       const booking = await api.createBooking(adminForm)
@@ -291,6 +301,7 @@ function App() {
         goal: '減脂 / 新手入門',
         preferredSlot: '平日晚上',
       })
+      setNotice(`Admin 已建立 ${booking.name} 的 booking`)
     } catch {
       setError('Admin 建立 booking 失敗，請稍後再試')
     } finally {
@@ -350,6 +361,7 @@ function App() {
     const key = `${phone}-${email}`
     setUpdatingKey(key)
     setError('')
+    setNotice('')
 
     try {
       const updated = await api.updateBookingStatus(phone, email, status)
@@ -359,6 +371,8 @@ function App() {
       if (lookupResult && lookupResult.phone === updated.phone && lookupResult.email === updated.email) {
         setLookupResult(updated)
       }
+
+      setNotice(`已更新 ${updated.name} 的狀態為 ${updated.status}`)
     } catch {
       setError('更新狀態失敗，請稍後再試')
     } finally {
@@ -374,6 +388,7 @@ function App() {
 
     setBusy(true)
     setError('')
+    setNotice('')
 
     try {
       const targets = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
@@ -383,6 +398,7 @@ function App() {
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
       setSelectedBookingKeys([])
+      setNotice(`已批次更新 ${targets.length} 筆 booking 為 ${batchStatus}`)
     } catch {
       setError('批次更新狀態失敗，請稍後再試')
     } finally {
@@ -412,6 +428,7 @@ function App() {
 
     setDetailSaving(true)
     setError('')
+    setNotice('')
 
     try {
       const updated = await api.updateBookingDetails(selectedBooking.phone, selectedBooking.email, {
@@ -427,6 +444,8 @@ function App() {
       if (lookupResult && lookupResult.phone === updated.phone && lookupResult.email === updated.email) {
         setLookupResult(updated)
       }
+
+      setNotice(`已儲存 ${updated.name} 的 booking 明細`)
     } catch {
       setError('更新 booking 明細失敗，請稍後再試')
     } finally {
@@ -442,6 +461,7 @@ function App() {
 
     setDetailDeleting(true)
     setError('')
+    setNotice('')
 
     try {
       await api.deleteBooking(selectedBooking.phone, selectedBooking.email)
@@ -453,6 +473,7 @@ function App() {
       }
 
       setSelectedBooking(null)
+      setNotice(`已刪除 ${selectedBooking.name} 的 booking`)
     } catch {
       setError('刪除 booking 失敗，請稍後再試')
     } finally {
@@ -795,6 +816,9 @@ function App() {
             <p className="section-note">直接讀 API booking 清單，帶搜尋、篩選與狀態總覽。</p>
           </div>
 
+          {error ? <p className="error-text admin-feedback">{error}</p> : null}
+          {notice ? <p className="notice-text admin-feedback">{notice}</p> : null}
+
           <div className="admin-create-panel">
             <div className="section-heading compact">
               <div>
@@ -900,7 +924,9 @@ function App() {
           </div>
 
           <div className="booking-table-shell">
-            {filteredBookings.length > 0 ? (
+            {loadingBookings ? (
+              <div className="admin-loading-card">booking 資料載入中...</div>
+            ) : filteredBookings.length > 0 ? (
               <>
                 <div className="booking-table-meta">
                   <span>
