@@ -1184,18 +1184,18 @@ function App() {
               <strong>{filteredAdminStats.total}</strong>
               <span>目前結果</span>
             </div>
-            <div className="filtered-stat-card">
+            <button className={`filtered-stat-card stat-chip-btn ${adminStatus === '待回覆' ? 'active' : ''}`} onClick={() => setAdminStatus('待回覆')}>
               <strong>{filteredAdminStats.pending}</strong>
               <span>待回覆</span>
-            </div>
-            <div className="filtered-stat-card">
+            </button>
+            <button className={`filtered-stat-card stat-chip-btn ${adminStatus === '已確認' ? 'active' : ''}`} onClick={() => setAdminStatus('已確認')}>
               <strong>{filteredAdminStats.confirmed}</strong>
               <span>已確認</span>
-            </div>
-            <div className="filtered-stat-card">
+            </button>
+            <button className={`filtered-stat-card stat-chip-btn ${adminStatus === '已完成' ? 'active' : ''}`} onClick={() => setAdminStatus('已完成')}>
               <strong>{filteredAdminStats.completed}</strong>
               <span>已完成</span>
-            </div>
+            </button>
           </div>
 
           <div className="batch-toolbar">
