@@ -1225,6 +1225,25 @@ a {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.admin-feedback-info {
+  color: #8ec5ff;
+}
+
+.control-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.control-fieldset:disabled {
+  opacity: 0.82;
+}
+
+.detail-fieldset {
+  display: block;
+}
+
 .footer {
   margin-top: 24px;
   display: flex;

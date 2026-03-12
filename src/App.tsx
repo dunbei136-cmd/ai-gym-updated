@@ -433,6 +433,16 @@ function App() {
       detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt ||
       JSON.stringify(detailForm.activityLog) !== JSON.stringify(selectedBooking.activityLog))
   const interactionLocked = busy || detailSaving || detailDeleting || !!dragBookingKey
+  const detailFormLocked = detailSaving || detailDeleting
+  const busyLabel = detailSaving
+    ? '正在儲存 booking / CRM 明細...'
+    : detailDeleting
+      ? '正在刪除 booking...'
+      : dragBookingKey
+        ? '正在更新 pipeline 階段...'
+        : busy
+          ? '正在處理 admin 操作...'
+          : ''
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -1375,6 +1385,7 @@ function App() {
 
           {error ? <p className="error-text admin-feedback">{error}</p> : null}
           {notice ? <p className="notice-text admin-feedback">{notice}</p> : null}
+          {busyLabel ? <p className="admin-feedback admin-feedback-info">{busyLabel}</p> : null}
 
           <div className="admin-create-panel">
             <div className="section-heading compact">
@@ -1385,40 +1396,42 @@ function App() {
               <p className="section-note">用 admin 角度快速建立資料，建立後會自動選中這筆 booking。</p>
             </div>
 
-            <div className="admin-create-grid">
-              <label>
-                姓名
-                <input value={adminForm.name} onChange={(event) => updateAdminForm('name', event.target.value)} placeholder="例如：王小明" />
-              </label>
-              <label>
-                手機號碼
-                <input value={adminForm.phone} onChange={(event) => updateAdminForm('phone', event.target.value)} placeholder="例如：0912345678" />
-              </label>
-              <label>
-                Email
-                <input value={adminForm.email} onChange={(event) => updateAdminForm('email', event.target.value)} placeholder="例如：ming@example.com" />
-              </label>
-              <label>
-                目標
-                <select value={adminForm.goal} onChange={(event) => updateAdminForm('goal', event.target.value)}>
-                  <option>減脂 / 新手入門</option>
-                  <option>增肌 / 重訓規劃</option>
-                  <option>姿勢矯正 / 體態改善</option>
-                  <option>團體課 / 體驗參觀</option>
-                </select>
-              </label>
-              <label>
-                偏好時段
-                <select value={adminForm.preferredSlot} onChange={(event) => updateAdminForm('preferredSlot', event.target.value)}>
-                  <option>平日晚上</option>
-                  <option>平日白天</option>
-                  <option>週末上午</option>
-                </select>
-              </label>
-              <button className="submit-btn admin-create-btn" onClick={() => void submitAdminBooking()} disabled={busy}>
-                {busy ? '建立中...' : '新增 booking'}
-              </button>
-            </div>
+            <fieldset className="control-fieldset" disabled={interactionLocked}>
+              <div className="admin-create-grid">
+                <label>
+                  姓名
+                  <input value={adminForm.name} onChange={(event) => updateAdminForm('name', event.target.value)} placeholder="例如：王小明" />
+                </label>
+                <label>
+                  手機號碼
+                  <input value={adminForm.phone} onChange={(event) => updateAdminForm('phone', event.target.value)} placeholder="例如：0912345678" />
+                </label>
+                <label>
+                  Email
+                  <input value={adminForm.email} onChange={(event) => updateAdminForm('email', event.target.value)} placeholder="例如：ming@example.com" />
+                </label>
+                <label>
+                  目標
+                  <select value={adminForm.goal} onChange={(event) => updateAdminForm('goal', event.target.value)}>
+                    <option>減脂 / 新手入門</option>
+                    <option>增肌 / 重訓規劃</option>
+                    <option>姿勢矯正 / 體態改善</option>
+                    <option>團體課 / 體驗參觀</option>
+                  </select>
+                </label>
+                <label>
+                  偏好時段
+                  <select value={adminForm.preferredSlot} onChange={(event) => updateAdminForm('preferredSlot', event.target.value)}>
+                    <option>平日晚上</option>
+                    <option>平日白天</option>
+                    <option>週末上午</option>
+                  </select>
+                </label>
+                <button className="submit-btn admin-create-btn" onClick={() => void submitAdminBooking()} disabled={busy}>
+                  {busy ? '建立中...' : '新增 booking'}
+                </button>
+              </div>
+            </fieldset>
           </div>
 
           <div className="admin-stats-grid">
@@ -1539,88 +1552,90 @@ function App() {
             ))}
           </div>
 
-          <div className="admin-toolbar admin-toolbar-crm">
-            <input
-              value={adminQuery}
-              onChange={(event) => setAdminQuery(event.target.value)}
-              placeholder="搜尋姓名 / 手機 / Email / 課程 / 負責人"
-            />
-            <select value={adminStatus} onChange={(event) => setAdminStatus(event.target.value as '全部' | BookingStatus)}>
-              <option>全部</option>
-              <option>待回覆</option>
-              <option>已確認</option>
-              <option>已完成</option>
-            </select>
-            <select value={adminStage} onChange={(event) => setAdminStage(event.target.value as '全部階段' | LeadStage)}>
-              <option>全部階段</option>
-              {stageOptions.map((stage) => (
-                <option key={stage}>{stage}</option>
-              ))}
-            </select>
-            <select value={adminSource} onChange={(event) => setAdminSource(event.target.value as '全部來源' | LeadSource)}>
-              <option>全部來源</option>
-              {sourceOptions.map((source) => (
-                <option key={source}>{source}</option>
-              ))}
-            </select>
-            <select value={adminTrainer} onChange={(event) => setAdminTrainer(event.target.value)}>
-              {trainerOptions.map((trainer) => (
-                <option key={trainer}>{trainer}</option>
-              ))}
-            </select>
-            <select value={adminClass} onChange={(event) => setAdminClass(event.target.value)}>
-              {classOptions.map((className) => (
-                <option key={className}>{className}</option>
-              ))}
-            </select>
-            <select value={adminAssignee} onChange={(event) => setAdminAssignee(event.target.value)}>
-              {assigneeOptions.map((assignee) => (
-                <option key={assignee}>{assignee}</option>
-              ))}
-            </select>
-            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z' | '追蹤時間近→遠')}>
-              <option>最近更新</option>
-              <option>最早更新</option>
-              <option>預約時間新→舊</option>
-              <option>追蹤時間近→遠</option>
-              <option>姓名 A-Z</option>
-            </select>
-            <input type="date" value={adminStartDate} onChange={(event) => setAdminStartDate(event.target.value)} />
-            <input type="date" value={adminEndDate} onChange={(event) => setAdminEndDate(event.target.value)} />
-            <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
-              匯出 CSV
-            </button>
-            <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminOverdueOnly((prev) => !prev)}>
-              {adminOverdueOnly ? '顯示全部' : '逾期待處理'}
-            </button>
-            <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminFollowUpOnly((prev) => !prev)}>
-              {adminFollowUpOnly ? '全部名單' : '待追蹤'}
-            </button>
-            <button className="secondary-btn admin-selected-btn" onClick={() => setAdminSelectedOnly((prev) => !prev)} disabled={selectedBookingKeys.length === 0 && !adminSelectedOnly}>
-              {adminSelectedOnly ? '顯示全部' : '只看已勾選'}
-            </button>
-            <button className="secondary-btn admin-clear-btn" onClick={resetAdminFilters} disabled={activeFilterLabels.length === 0}>
-              清除篩選
-            </button>
-          </div>
+          <fieldset className="control-fieldset" disabled={interactionLocked}>
+            <div className="admin-toolbar admin-toolbar-crm">
+              <input
+                value={adminQuery}
+                onChange={(event) => setAdminQuery(event.target.value)}
+                placeholder="搜尋姓名 / 手機 / Email / 課程 / 負責人"
+              />
+              <select value={adminStatus} onChange={(event) => setAdminStatus(event.target.value as '全部' | BookingStatus)}>
+                <option>全部</option>
+                <option>待回覆</option>
+                <option>已確認</option>
+                <option>已完成</option>
+              </select>
+              <select value={adminStage} onChange={(event) => setAdminStage(event.target.value as '全部階段' | LeadStage)}>
+                <option>全部階段</option>
+                {stageOptions.map((stage) => (
+                  <option key={stage}>{stage}</option>
+                ))}
+              </select>
+              <select value={adminSource} onChange={(event) => setAdminSource(event.target.value as '全部來源' | LeadSource)}>
+                <option>全部來源</option>
+                {sourceOptions.map((source) => (
+                  <option key={source}>{source}</option>
+                ))}
+              </select>
+              <select value={adminTrainer} onChange={(event) => setAdminTrainer(event.target.value)}>
+                {trainerOptions.map((trainer) => (
+                  <option key={trainer}>{trainer}</option>
+                ))}
+              </select>
+              <select value={adminClass} onChange={(event) => setAdminClass(event.target.value)}>
+                {classOptions.map((className) => (
+                  <option key={className}>{className}</option>
+                ))}
+              </select>
+              <select value={adminAssignee} onChange={(event) => setAdminAssignee(event.target.value)}>
+                {assigneeOptions.map((assignee) => (
+                  <option key={assignee}>{assignee}</option>
+                ))}
+              </select>
+              <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z' | '追蹤時間近→遠')}>
+                <option>最近更新</option>
+                <option>最早更新</option>
+                <option>預約時間新→舊</option>
+                <option>追蹤時間近→遠</option>
+                <option>姓名 A-Z</option>
+              </select>
+              <input type="date" value={adminStartDate} onChange={(event) => setAdminStartDate(event.target.value)} />
+              <input type="date" value={adminEndDate} onChange={(event) => setAdminEndDate(event.target.value)} />
+              <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
+                匯出 CSV
+              </button>
+              <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminOverdueOnly((prev) => !prev)}>
+                {adminOverdueOnly ? '顯示全部' : '逾期待處理'}
+              </button>
+              <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminFollowUpOnly((prev) => !prev)}>
+                {adminFollowUpOnly ? '全部名單' : '待追蹤'}
+              </button>
+              <button className="secondary-btn admin-selected-btn" onClick={() => setAdminSelectedOnly((prev) => !prev)} disabled={selectedBookingKeys.length === 0 && !adminSelectedOnly}>
+                {adminSelectedOnly ? '顯示全部' : '只看已勾選'}
+              </button>
+              <button className="secondary-btn admin-clear-btn" onClick={resetAdminFilters} disabled={activeFilterLabels.length === 0}>
+                清除篩選
+              </button>
+            </div>
 
-          <div className="quick-filter-row">
-            <button className="secondary-btn quick-filter-btn" onClick={applyTodayFilter}>
-              今天
-            </button>
-            <button className="secondary-btn quick-filter-btn" onClick={applyThisWeekFilter}>
-              本週
-            </button>
-            <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('新名單')}>
-              新名單
-            </button>
-            <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('已聯繫')}>
-              已聯繫
-            </button>
-            <button className="secondary-btn quick-filter-btn" onClick={resetAdminFilters}>
-              清空全部
-            </button>
-          </div>
+            <div className="quick-filter-row">
+              <button className="secondary-btn quick-filter-btn" onClick={applyTodayFilter}>
+                今天
+              </button>
+              <button className="secondary-btn quick-filter-btn" onClick={applyThisWeekFilter}>
+                本週
+              </button>
+              <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('新名單')}>
+                新名單
+              </button>
+              <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('已聯繫')}>
+                已聯繫
+              </button>
+              <button className="secondary-btn quick-filter-btn" onClick={resetAdminFilters}>
+                清空全部
+              </button>
+            </div>
+          </fieldset>
 
           {activeFilterLabels.length > 0 ? (
             <div className="active-filters">
@@ -1651,61 +1666,63 @@ function App() {
             </button>
           </div>
 
-          <div className="batch-toolbar">
-            <label className="batch-select-label">
-              <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectCurrentPage} />
-              <span>本頁全選</span>
-            </label>
-            <button className="secondary-btn batch-mini-btn" onClick={selectAllFilteredBookings} disabled={filteredBookings.length === 0}>
-              全選篩選結果
-            </button>
-            <button className="secondary-btn batch-mini-btn" onClick={clearSelectedBookings} disabled={selectedBookingKeys.length === 0}>
-              清空勾選
-            </button>
-            <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('phone', '手機')} disabled={selectedBookingKeys.length === 0}>
-              複製手機
-            </button>
-            <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('email', 'Email')} disabled={selectedBookingKeys.length === 0}>
-              複製 Email
-            </button>
-            <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
-            <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingStatus)}>
-              <option>待回覆</option>
-              <option>已確認</option>
-              <option>已完成</option>
-            </select>
-            <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
-              {busy ? '批次更新中...' : '批次改狀態'}
-            </button>
-            <select value={batchStage} onChange={(event) => setBatchStage(event.target.value as '不變' | LeadStage)}>
-              <option>不變</option>
-              {stageOptions.map((stage) => (
-                <option key={stage}>{stage}</option>
-              ))}
-            </select>
-            <input
-              value={batchAssignee}
-              onChange={(event) => setBatchAssignee(event.target.value)}
-              placeholder="批次指定負責人"
-            />
-            <button
-              className="secondary-btn batch-action-btn"
-              onClick={() => void updateSelectedBookingsCrm()}
-              disabled={
-                busy ||
-                selectedBookingKeys.length === 0 ||
-                (batchStage === '不變' && !batchAssignee.trim())
-              }
-            >
-              {busy ? '批次更新中...' : '批次改 CRM'}
-            </button>
-            <button className="secondary-btn batch-action-btn" onClick={exportSelectedBookingsCsv} disabled={selectedBookingKeys.length === 0}>
-              匯出已勾選
-            </button>
-            <button className="danger-btn batch-action-btn" onClick={() => void deleteSelectedBookings()} disabled={busy || selectedBookingKeys.length === 0}>
-              {busy ? '批次處理中...' : '批次刪除'}
-            </button>
-          </div>
+          <fieldset className="control-fieldset" disabled={interactionLocked}>
+            <div className="batch-toolbar">
+              <label className="batch-select-label">
+                <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectCurrentPage} />
+                <span>本頁全選</span>
+              </label>
+              <button className="secondary-btn batch-mini-btn" onClick={selectAllFilteredBookings} disabled={filteredBookings.length === 0}>
+                全選篩選結果
+              </button>
+              <button className="secondary-btn batch-mini-btn" onClick={clearSelectedBookings} disabled={selectedBookingKeys.length === 0}>
+                清空勾選
+              </button>
+              <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('phone', '手機')} disabled={selectedBookingKeys.length === 0}>
+                複製手機
+              </button>
+              <button className="secondary-btn batch-mini-btn" onClick={() => void copySelectedContacts('email', 'Email')} disabled={selectedBookingKeys.length === 0}>
+                複製 Email
+              </button>
+              <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
+              <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingStatus)}>
+                <option>待回覆</option>
+                <option>已確認</option>
+                <option>已完成</option>
+              </select>
+              <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
+                {busy ? '批次更新中...' : '批次改狀態'}
+              </button>
+              <select value={batchStage} onChange={(event) => setBatchStage(event.target.value as '不變' | LeadStage)}>
+                <option>不變</option>
+                {stageOptions.map((stage) => (
+                  <option key={stage}>{stage}</option>
+                ))}
+              </select>
+              <input
+                value={batchAssignee}
+                onChange={(event) => setBatchAssignee(event.target.value)}
+                placeholder="批次指定負責人"
+              />
+              <button
+                className="secondary-btn batch-action-btn"
+                onClick={() => void updateSelectedBookingsCrm()}
+                disabled={
+                  busy ||
+                  selectedBookingKeys.length === 0 ||
+                  (batchStage === '不變' && !batchAssignee.trim())
+                }
+              >
+                {busy ? '批次更新中...' : '批次改 CRM'}
+              </button>
+              <button className="secondary-btn batch-action-btn" onClick={exportSelectedBookingsCsv} disabled={selectedBookingKeys.length === 0}>
+                匯出已勾選
+              </button>
+              <button className="danger-btn batch-action-btn" onClick={() => void deleteSelectedBookings()} disabled={busy || selectedBookingKeys.length === 0}>
+                {busy ? '批次處理中...' : '批次刪除'}
+              </button>
+            </div>
+          </fieldset>
 
           <div className="booking-table-shell">
             {loadingBookings ? (
@@ -1935,7 +1952,8 @@ function App() {
                 </div>
               </div>
 
-              <div className="detail-grid">
+              <fieldset className="control-fieldset detail-fieldset" disabled={detailFormLocked}>
+                <div className="detail-grid">
                 <label className="detail-field">
                   <span>狀態</span>
                   <select
@@ -2157,7 +2175,8 @@ function App() {
                     <p className="activity-empty-text">還沒有聯絡紀錄，可以先用上面的快捷按鈕補第一筆。</p>
                   )}
                 </div>
-              </div>
+                </div>
+              </fieldset>
 
               <div className="detail-actions">
                 <button
