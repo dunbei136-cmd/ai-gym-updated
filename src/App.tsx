@@ -891,7 +891,7 @@ function App() {
             <div className="chat-sidebar">
               <div className="quick-replies">
                 {quickReplies.map((reply) => (
-                  <button key={reply} className="chip" onClick={() => void sendMessage(reply)}>
+                  <button key={reply} className="chip" onClick={() => void sendMessage(reply)} disabled={Date.now() < chatCooldownUntil}>
                     {reply}
                   </button>
                 ))}
@@ -906,6 +906,7 @@ function App() {
                   送出
                 </button>
               </div>
+              <p className="chat-helper-note">建議直接問完整問題，例如「會員費用多少」或「幫我推薦新手課」，可降低 API 消耗。</p>
             </div>
           </div>
         </section>
