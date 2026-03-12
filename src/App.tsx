@@ -354,6 +354,16 @@ function App() {
     setAdminPage(1)
   }
 
+  const copyToClipboard = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setError('')
+      setNotice(`已複製${label}：${value}`)
+    } catch {
+      setError(`複製${label}失敗，請稍後再試`)
+    }
+  }
+
   const exportBookingsCsv = () => {
     const rows = [
       ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態'],
@@ -1072,8 +1082,18 @@ function App() {
                             </td>
                             <td>
                               <div className="booking-table-stack">
-                                <span>{booking.phone}</span>
-                                <span>{booking.email}</span>
+                                <div className="contact-row">
+                                  <span>{booking.phone}</span>
+                                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('手機', booking.phone)}>
+                                    複製
+                                  </button>
+                                </div>
+                                <div className="contact-row">
+                                  <span>{booking.email}</span>
+                                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('Email', booking.email)}>
+                                    複製
+                                  </button>
+                                </div>
                               </div>
                             </td>
                             <td>{formatBookingDateLabel(booking.date)}</td>
@@ -1191,10 +1211,16 @@ function App() {
                 <div>
                   <span>手機</span>
                   <strong>{selectedBooking.phone}</strong>
+                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('手機', selectedBooking.phone)}>
+                    複製手機
+                  </button>
                 </div>
                 <div>
                   <span>Email</span>
                   <strong>{selectedBooking.email}</strong>
+                  <button className="mini-copy-btn" onClick={() => void copyToClipboard('Email', selectedBooking.email)}>
+                    複製 Email
+                  </button>
                 </div>
                 <label className="detail-field">
                   <span>姓名</span>

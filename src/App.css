@@ -719,6 +719,23 @@ a {
   line-height: 1.5;
 }
 
+.contact-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mini-copy-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  color: #eef3ff;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+
 .pagination-bar {
   display: flex;
   justify-content: flex-end;
