@@ -19,6 +19,18 @@ function fromDateTimeInputValue(value: string) {
   return `${datePart.replaceAll('-', '/')} ${timePart}`
 }
 
+function formatBookingDateLabel(value: string) {
+  const matched = value.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/)
+  if (!matched) return value
+
+  const [, year, month, day, hour, minute] = matched
+  const date = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`)
+  if (Number.isNaN(date.getTime())) return value
+
+  const weekday = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'][date.getDay()]
+  return `${year}/${month}/${day} ${weekday} ${hour}:${minute}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -480,7 +492,7 @@ function App() {
                     </li>
                     <li>
                       <strong>時間：</strong>
-                      {lookupResult.date}
+                      {formatBookingDateLabel(lookupResult.date)}
                     </li>
                     <li>
                       <strong>聯絡方式：</strong>
@@ -662,7 +674,7 @@ function App() {
                       <option>已完成</option>
                     </select>
                     <p>{isUpdating ? '更新中...' : `${booking.phone} / ${booking.email}`}</p>
-                    <p>{booking.date}</p>
+                    <p>{formatBookingDateLabel(booking.date)}</p>
                   </div>
                 </article>
               )
@@ -689,10 +701,24 @@ function App() {
               </div>
 
               <div className="detail-grid">
-                <div>
+                <label className="detail-field">
                   <span>狀態</span>
-                  <strong>{selectedBooking.status}</strong>
-                </div>
+                  <select
+                    value={selectedBooking.status}
+                    disabled={detailSaving || updatingKey === `${selectedBooking.phone}-${selectedBooking.email}`}
+                    onChange={(event) =>
+                      void changeBookingStatus(
+                        selectedBooking.phone,
+                        selectedBooking.email,
+                        event.target.value as BookingRecord['status'],
+                      )
+                    }
+                  >
+                    <option>待回覆</option>
+                    <option>已確認</option>
+                    <option>已完成</option>
+                  </select>
+                </label>
                 <div>
                   <span>手機</span>
                   <strong>{selectedBooking.phone}</strong>
