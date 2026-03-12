@@ -610,6 +610,29 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedBooking) return
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (hasUnsavedDetailChanges && !detailSaving && !detailDeleting) {
+          void saveBookingDetails()
+        }
+      }
+
+      if (event.key === 'Escape') {
+        if (detailSaving || detailDeleting) return
+        if (!confirmLeaveDirtyDetail()) return
+        setSelectedBooking(null)
+        setError('')
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [confirmLeaveDirtyDetail, detailDeleting, detailSaving, hasUnsavedDetailChanges, selectedBooking])
+
   return (
     <div className="app-shell">
       <nav className="topbar">
@@ -1261,6 +1284,7 @@ function App() {
                   <p className="section-kicker">Booking Detail</p>
                   <h3>{detailForm.name || selectedBooking.name}</h3>
                   {hasUnsavedDetailChanges ? <p className="detail-dirty-hint">有未儲存變更</p> : null}
+                  <p className="detail-shortcut-hint">快捷鍵：Ctrl/Cmd + S 儲存，Esc 關閉</p>
                 </div>
                 <div className="detail-header-actions">
                   <button
