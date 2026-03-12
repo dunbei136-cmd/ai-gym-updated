@@ -18,6 +18,7 @@ const seedBookings = [
     trainer: 'Coach Aiden',
     date: '2026/03/18 19:00',
     status: '已確認',
+    notes: '已完成初步體驗課確認，可追蹤轉正式會員。',
   },
   {
     name: '陳志豪',
@@ -27,6 +28,7 @@ const seedBookings = [
     trainer: 'Coach Vera',
     date: '2026/03/19 14:30',
     status: '待回覆',
+    notes: '偏好下午時段，對重訓課表很有興趣。',
   },
   {
     name: '林佩琪',
@@ -36,6 +38,7 @@ const seedBookings = [
     trainer: 'Coach Max',
     date: '2026/03/12 20:00',
     status: '已完成',
+    notes: '已完成體驗，可作為回訪名單。',
   },
 ]
 
@@ -55,11 +58,17 @@ db.exec(`
     trainer TEXT NOT NULL,
     date TEXT NOT NULL,
     status TEXT NOT NULL,
+    notes TEXT NOT NULL DEFAULT '',
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(phone, email)
   );
 `)
+
+const columns = db.prepare(`PRAGMA table_info(bookings)`).all()
+if (!columns.some((column) => column.name === 'notes')) {
+  db.exec(`ALTER TABLE bookings ADD COLUMN notes TEXT NOT NULL DEFAULT ''`)
+}
 
 function normalizeRow(row) {
   if (!row) return null
@@ -71,6 +80,7 @@ function normalizeRow(row) {
     trainer: row.trainer,
     date: row.date,
     status: row.status,
+    notes: row.notes ?? '',
   }
 }
 
@@ -93,14 +103,23 @@ function seedIfEmpty() {
   }
 
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO bookings (name, phone, email, className, trainer, date, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO bookings (name, phone, email, className, trainer, date, status, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
   db.exec('BEGIN')
   try {
     for (const row of initialData) {
-      insert.run(row.name, row.phone, row.email, row.className, row.trainer, row.date, row.status)
+      insert.run(
+        row.name,
+        row.phone,
+        row.email,
+        row.className,
+        row.trainer,
+        row.date,
+        row.status,
+        row.notes ?? '',
+      )
     }
     db.exec('COMMIT')
   } catch (error) {
@@ -113,7 +132,7 @@ seedIfEmpty()
 
 export function listBookings() {
   const rows = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status
+    SELECT name, phone, email, className, trainer, date, status, notes
     FROM bookings
     ORDER BY datetime(createdAt) DESC, id DESC
   `).all()
@@ -123,7 +142,7 @@ export function listBookings() {
 
 export function lookupBooking(phone, email) {
   const row = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status
+    SELECT name, phone, email, className, trainer, date, status, notes
     FROM bookings
     WHERE phone = ? AND lower(email) = lower(?)
     LIMIT 1
@@ -134,14 +153,15 @@ export function lookupBooking(phone, email) {
 
 export function upsertBooking(booking) {
   db.prepare(`
-    INSERT INTO bookings (name, phone, email, className, trainer, date, status, createdAt, updatedAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO bookings (name, phone, email, className, trainer, date, status, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(phone, email) DO UPDATE SET
       name = excluded.name,
       className = excluded.className,
       trainer = excluded.trainer,
       date = excluded.date,
       status = excluded.status,
+      notes = excluded.notes,
       updatedAt = CURRENT_TIMESTAMP
   `).run(
     booking.name,
@@ -151,6 +171,7 @@ export function upsertBooking(booking) {
     booking.trainer,
     booking.date,
     booking.status,
+    booking.notes ?? '',
   )
 
   return lookupBooking(booking.phone, booking.email)
@@ -169,13 +190,14 @@ export function updateBookingStatus(phone, email, status) {
 export function updateBookingDetails(phone, email, patch) {
   db.prepare(`
     UPDATE bookings
-    SET name = ?, className = ?, trainer = ?, date = ?, updatedAt = CURRENT_TIMESTAMP
+    SET name = ?, className = ?, trainer = ?, date = ?, notes = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE phone = ? AND lower(email) = lower(?)
   `).run(
     patch.name,
     patch.className,
     patch.trainer,
     patch.date,
+    patch.notes ?? '',
     phone.trim(),
     email.trim().toLowerCase(),
   )

@@ -83,6 +83,7 @@ function App() {
     className: '',
     trainer: '',
     date: '',
+    notes: '',
   })
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailDeleting, setDetailDeleting] = useState(false)
@@ -140,6 +141,7 @@ function App() {
       className: selectedBooking.className,
       trainer: selectedBooking.trainer,
       date: selectedBooking.date,
+      notes: selectedBooking.notes,
     })
   }, [selectedBooking])
 
@@ -171,7 +173,8 @@ function App() {
         booking.name.toLowerCase().includes(keyword) ||
         booking.phone.includes(keyword) ||
         booking.email.toLowerCase().includes(keyword) ||
-        booking.className.toLowerCase().includes(keyword)
+        booking.className.toLowerCase().includes(keyword) ||
+        booking.notes.toLowerCase().includes(keyword)
 
       const bookingDateOnly = getBookingDateOnly(booking.date)
       const matchStartDate = !adminStartDate || (bookingDateOnly && bookingDateOnly >= adminStartDate)
@@ -510,6 +513,7 @@ function App() {
         className: detailForm.className.trim(),
         trainer: detailForm.trainer.trim(),
         date: detailForm.date.trim(),
+        notes: detailForm.notes.trim(),
       })
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
@@ -1078,6 +1082,7 @@ function App() {
                               <div className="booking-table-stack">
                                 <strong>{booking.className}</strong>
                                 <span>{booking.trainer}</span>
+                                {booking.notes ? <span className="notes-preview">備註：{booking.notes}</span> : null}
                               </div>
                             </td>
                             <td>
@@ -1255,6 +1260,15 @@ function App() {
                   />
                   <small className="detail-help">儲存格式會自動轉成 YYYY/MM/DD HH:mm</small>
                 </label>
+                <label className="detail-field detail-field-wide">
+                  <span>內部備註</span>
+                  <textarea
+                    value={detailForm.notes}
+                    onChange={(event) => updateDetailForm('notes', event.target.value)}
+                    placeholder="例如：已電話確認、偏好晚間時段、可作為回訪名單"
+                    rows={4}
+                  />
+                </label>
               </div>
 
               <div className="detail-actions">
@@ -1273,6 +1287,7 @@ function App() {
                       className: selectedBooking.className,
                       trainer: selectedBooking.trainer,
                       date: selectedBooking.date,
+                      notes: selectedBooking.notes,
                     })
                   }
                   disabled={detailSaving || detailDeleting}

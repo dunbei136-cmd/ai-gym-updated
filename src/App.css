@@ -719,6 +719,11 @@ a {
   line-height: 1.5;
 }
 
+.notes-preview {
+  color: #8fa4d4;
+  font-size: 0.85rem;
+}
+
 .contact-row {
   display: flex;
   align-items: center;
@@ -804,7 +809,8 @@ a {
 }
 
 .detail-field input,
-.detail-field select {
+.detail-field select,
+.detail-field textarea {
   width: 100%;
   min-height: 44px;
   padding: 0 14px;
@@ -812,6 +818,16 @@ a {
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.detail-field textarea {
+  min-height: 112px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.detail-field-wide {
+  grid-column: 1 / -1;
 }
 
 .detail-help {

@@ -11,9 +11,10 @@ export type BookingRecord = {
   trainer: string
   date: string
   status: '已確認' | '待回覆' | '已完成'
+  notes: string
 }
 
-export type BookingDetailPatch = Pick<BookingRecord, 'name' | 'className' | 'trainer' | 'date'>
+export type BookingDetailPatch = Pick<BookingRecord, 'name' | 'className' | 'trainer' | 'date' | 'notes'>
 
 export type ChatMessage = {
   role: 'assistant' | 'user'

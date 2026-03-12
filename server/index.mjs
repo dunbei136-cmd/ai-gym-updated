@@ -113,6 +113,7 @@ const server = http.createServer(async (req, res) => {
         trainer: program.trainer,
         date: resolveSlot(preferredSlot),
         status: '待回覆',
+        notes: '',
       })
 
       json(res, 201, booking)
@@ -148,7 +149,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/bookings/details') {
     try {
       const body = await collectBody(req)
-      const { phone = '', email = '', name = '', className = '', trainer = '', date = '' } = body
+      const { phone = '', email = '', name = '', className = '', trainer = '', date = '', notes = '' } = body
 
       if (!phone.trim() || !email.trim() || !name.trim() || !className.trim() || !trainer.trim() || !date.trim()) {
         json(res, 400, { error: 'phone, email, name, className, trainer, date are required' })
@@ -160,6 +161,7 @@ const server = http.createServer(async (req, res) => {
         className: className.trim(),
         trainer: trainer.trim(),
         date: date.trim(),
+        notes: typeof notes === 'string' ? notes.trim() : '',
       })
       if (!updated) {
         json(res, 404, { error: 'Booking not found' })

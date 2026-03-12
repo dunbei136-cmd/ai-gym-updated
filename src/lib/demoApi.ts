@@ -8,7 +8,9 @@ function readStoredBookings() {
     const raw = window.localStorage.getItem(storageKey)
     if (!raw) return []
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? (parsed as BookingRecord[]) : []
+    return Array.isArray(parsed)
+      ? parsed.map((item) => ({ ...item, notes: typeof item.notes === 'string' ? item.notes : '' }))
+      : []
   } catch {
     return []
   }
@@ -107,6 +109,7 @@ export const demoApi: GymApi = {
       trainer: program.trainer,
       date: resolveSlot(payload.preferredSlot),
       status: '待回覆',
+      notes: '',
     }
 
     const next = [
@@ -159,6 +162,7 @@ export const demoApi: GymApi = {
           trainer: '',
           date: '',
           status,
+          notes: '',
         }
 
     const next = [
@@ -198,6 +202,7 @@ export const demoApi: GymApi = {
           trainer: patch.trainer,
           date: patch.date,
           status: '待回覆',
+          notes: patch.notes ?? '',
         }
 
     const next = [
