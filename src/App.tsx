@@ -31,6 +31,10 @@ function formatBookingDateLabel(value: string) {
   return `${year}/${month}/${day} ${weekday} ${hour}:${minute}`
 }
 
+function getBookingKey(booking: Pick<BookingRecord, 'phone' | 'email'>) {
+  return `${booking.phone}-${booking.email}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -77,6 +81,8 @@ function App() {
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
   const [adminSort, setAdminSort] = useState<'最新優先' | '最舊優先' | '姓名 A-Z'>('最新優先')
   const [adminPage, setAdminPage] = useState(1)
+  const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
+  const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
 
   useEffect(() => {
     void api.listBookings().then(setBookings).catch(() => setError('載入 booking 資料失敗'))
@@ -168,9 +174,17 @@ function App() {
     setAdminPage(1)
   }, [adminQuery, adminSort, adminStatus])
 
+  useEffect(() => {
+    const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
+    setSelectedBookingKeys((prev) => prev.filter((key) => validKeys.has(key)))
+  }, [bookings])
+
   const totalAdminPages = Math.max(1, Math.ceil(filteredBookings.length / 5))
   const safeAdminPage = Math.min(adminPage, totalAdminPages)
   const paginatedBookings = filteredBookings.slice((safeAdminPage - 1) * 5, safeAdminPage * 5)
+  const paginatedBookingKeys = paginatedBookings.map((booking) => getBookingKey(booking))
+  const selectedOnPageCount = paginatedBookingKeys.filter((key) => selectedBookingKeys.includes(key)).length
+  const allOnPageSelected = paginatedBookingKeys.length > 0 && selectedOnPageCount === paginatedBookingKeys.length
 
   const selectedBookingIndex = selectedBooking
     ? filteredBookings.findIndex(
@@ -271,6 +285,23 @@ function App() {
     }
   }
 
+  const toggleBookingSelection = (booking: Pick<BookingRecord, 'phone' | 'email'>) => {
+    const key = getBookingKey(booking)
+    setSelectedBookingKeys((prev) =>
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key],
+    )
+  }
+
+  const toggleSelectCurrentPage = () => {
+    setSelectedBookingKeys((prev) => {
+      if (allOnPageSelected) {
+        return prev.filter((key) => !paginatedBookingKeys.includes(key))
+      }
+
+      return [...new Set([...prev, ...paginatedBookingKeys])]
+    })
+  }
+
   const exportBookingsCsv = () => {
     const rows = [
       ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態'],
@@ -319,6 +350,30 @@ function App() {
       setError('更新狀態失敗，請稍後再試')
     } finally {
       setUpdatingKey('')
+    }
+  }
+
+  const updateSelectedBookingsStatus = async () => {
+    if (selectedBookingKeys.length === 0) {
+      setError('請先勾選至少一筆 booking')
+      return
+    }
+
+    setBusy(true)
+    setError('')
+
+    try {
+      const targets = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
+      await Promise.all(
+        targets.map((booking) => api.updateBookingStatus(booking.phone, booking.email, batchStatus)),
+      )
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+      setSelectedBookingKeys([])
+    } catch {
+      setError('批次更新狀態失敗，請稍後再試')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -813,6 +868,22 @@ function App() {
             </button>
           </div>
 
+          <div className="batch-toolbar">
+            <label className="batch-select-label">
+              <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectCurrentPage} />
+              <span>本頁全選</span>
+            </label>
+            <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
+            <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingRecord['status'])}>
+              <option>待回覆</option>
+              <option>已確認</option>
+              <option>已完成</option>
+            </select>
+            <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
+              {busy ? '批次更新中...' : '批次改狀態'}
+            </button>
+          </div>
+
           <div className="booking-table-shell">
             {filteredBookings.length > 0 ? (
               <>
@@ -827,6 +898,7 @@ function App() {
                   <table className="booking-table">
                     <thead>
                       <tr>
+                        <th className="checkbox-column">選取</th>
                         <th>姓名</th>
                         <th>課程 / 教練</th>
                         <th>聯絡方式</th>
@@ -842,6 +914,13 @@ function App() {
 
                         return (
                           <tr key={bookingKey}>
+                            <td className="checkbox-column">
+                              <input
+                                type="checkbox"
+                                checked={selectedBookingKeys.includes(bookingKey)}
+                                onChange={() => toggleBookingSelection(booking)}
+                              />
+                            </td>
                             <td>
                               <strong>{booking.name}</strong>
                             </td>

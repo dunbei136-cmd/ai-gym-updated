@@ -552,6 +552,41 @@ a {
   width: 100%;
 }
 
+.batch-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.batch-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d8e1ff;
+}
+
+.batch-count {
+  color: #bdcaea;
+}
+
+.batch-toolbar select {
+  min-height: 44px;
+  padding: 0 14px;
+  color: #eef3ff;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.batch-action-btn {
+  min-width: 140px;
+}
+
 .booking-table-shell {
   display: grid;
   gap: 12px;
@@ -582,6 +617,11 @@ a {
   padding: 14px 16px;
   text-align: left;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.checkbox-column {
+  width: 64px;
+  text-align: center;
 }
 
 .booking-table th {
