@@ -212,6 +212,7 @@ try {
 
   await browser.close()
   await cleanup()
+  process.exit(0)
 } catch (error) {
   if (browser) {
     await browser.close().catch(() => undefined)

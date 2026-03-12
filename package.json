@@ -17,6 +17,7 @@
     "qa:edge-local": "node scripts/admin-edge-local-check.mjs",
     "qa:crm-batch": "node scripts/admin-crm-batch-check.mjs",
     "qa:workflow-local": "node scripts/admin-workflow-local-check.mjs",
+    "qa:all-local": "node scripts/run-local-qa.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
