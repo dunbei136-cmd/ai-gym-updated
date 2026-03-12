@@ -179,6 +179,8 @@ function App() {
   const [adminSelectedOnly, setAdminSelectedOnly] = useState(false)
   const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
   const [batchStatus, setBatchStatus] = useState<BookingStatus>('待回覆')
+  const [batchStage, setBatchStage] = useState<'不變' | LeadStage>('不變')
+  const [batchAssignee, setBatchAssignee] = useState('')
 
   useEffect(() => {
     setLoadingBookings(true)
@@ -705,6 +707,51 @@ function App() {
       setNotice(`已批次更新 ${targets.length} 筆 booking 為 ${batchStatus}`)
     } catch {
       setError('批次更新狀態失敗，請稍後再試')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const updateSelectedBookingsCrm = async () => {
+    if (selectedBookingKeys.length === 0) {
+      setError('請先勾選至少一筆 booking')
+      return
+    }
+
+    if (batchStage === '不變' && !batchAssignee.trim()) {
+      setError('請至少選一個 CRM 欄位更新：stage 或 assignee')
+      return
+    }
+
+    setBusy(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const targets = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
+      await Promise.all(
+        targets.map((booking) =>
+          api.updateBookingDetails(booking.phone, booking.email, {
+            name: booking.name,
+            className: booking.className,
+            trainer: booking.trainer,
+            date: booking.date,
+            notes: booking.notes,
+            source: booking.source,
+            nextFollowUpAt: booking.nextFollowUpAt,
+            stage: batchStage === '不變' ? booking.stage : batchStage,
+            assignee: batchAssignee.trim() || booking.assignee,
+          }),
+        ),
+      )
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+      setSelectedBookingKeys([])
+      setBatchStage('不變')
+      setBatchAssignee('')
+      setNotice(`已批次更新 ${targets.length} 筆 CRM 欄位`)
+    } catch {
+      setError('批次更新 CRM 欄位失敗，請稍後再試')
     } finally {
       setBusy(false)
     }
@@ -1433,6 +1480,28 @@ function App() {
             </select>
             <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
               {busy ? '批次更新中...' : '批次改狀態'}
+            </button>
+            <select value={batchStage} onChange={(event) => setBatchStage(event.target.value as '不變' | LeadStage)}>
+              <option>不變</option>
+              {stageOptions.map((stage) => (
+                <option key={stage}>{stage}</option>
+              ))}
+            </select>
+            <input
+              value={batchAssignee}
+              onChange={(event) => setBatchAssignee(event.target.value)}
+              placeholder="批次指定負責人"
+            />
+            <button
+              className="secondary-btn batch-action-btn"
+              onClick={() => void updateSelectedBookingsCrm()}
+              disabled={
+                busy ||
+                selectedBookingKeys.length === 0 ||
+                (batchStage === '不變' && !batchAssignee.trim())
+              }
+            >
+              {busy ? '批次更新中...' : '批次改 CRM'}
             </button>
             <button className="secondary-btn batch-action-btn" onClick={exportSelectedBookingsCsv} disabled={selectedBookingKeys.length === 0}>
               匯出已勾選

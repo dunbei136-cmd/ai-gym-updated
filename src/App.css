@@ -665,7 +665,8 @@ a {
   color: #bdcaea;
 }
 
-.batch-toolbar select {
+.batch-toolbar select,
+.batch-toolbar input {
   min-height: 44px;
   padding: 0 14px;
   color: #eef3ff;

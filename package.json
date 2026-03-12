@@ -14,6 +14,7 @@
     "qa:mobile": "node scripts/mobile-check.mjs",
     "qa:admin": "node scripts/admin-check.mjs",
     "qa:edge": "node scripts/admin-edge-check.mjs",
+    "qa:crm-batch": "node scripts/admin-crm-batch-check.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
