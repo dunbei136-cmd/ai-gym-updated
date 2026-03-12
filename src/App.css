@@ -908,6 +908,17 @@ a {
   font-size: 0.8rem;
 }
 
+.quick-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-status-btn {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
 .detail-dirty-hint {
   margin: 8px 0 0;
   color: #ffd98f;

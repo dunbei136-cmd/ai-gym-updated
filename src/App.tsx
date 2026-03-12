@@ -1461,6 +1461,29 @@ function App() {
                     <option>已確認</option>
                     <option>已完成</option>
                   </select>
+                  <div className="quick-status-actions">
+                    <button
+                      className="secondary-btn quick-status-btn"
+                      onClick={() => void changeBookingStatus(selectedBooking.phone, selectedBooking.email, '待回覆')}
+                      disabled={detailSaving || detailDeleting || selectedBooking.status === '待回覆'}
+                    >
+                      標記待回覆
+                    </button>
+                    <button
+                      className="secondary-btn quick-status-btn"
+                      onClick={() => void changeBookingStatus(selectedBooking.phone, selectedBooking.email, '已確認')}
+                      disabled={detailSaving || detailDeleting || selectedBooking.status === '已確認'}
+                    >
+                      標記已確認
+                    </button>
+                    <button
+                      className="secondary-btn quick-status-btn"
+                      onClick={() => void changeBookingStatus(selectedBooking.phone, selectedBooking.email, '已完成')}
+                      disabled={detailSaving || detailDeleting || selectedBooking.status === '已完成'}
+                    >
+                      標記已完成
+                    </button>
+                  </div>
                 </label>
                 <div>
                   <span>手機</span>
