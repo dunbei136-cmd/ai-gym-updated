@@ -1,5 +1,5 @@
 import { seedBookingRecords, storageKey } from '../data/content'
-import type { BookingDetailPatch, BookingRecord, GymApi, LeadForm } from '../types'
+import type { BookingDetailPatch, BookingRecord, GymApi, LeadForm, LeadSource, LeadStage } from '../types'
 
 function readStoredBookings() {
   if (typeof window === 'undefined') return [] as BookingRecord[]
@@ -9,12 +9,7 @@ function readStoredBookings() {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed)
-      ? parsed.map((item) => ({
-          ...item,
-          notes: typeof item.notes === 'string' ? item.notes : '',
-          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
-          updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString(),
-        }))
+      ? parsed.map((item) => normalizeBooking(item))
       : []
   } catch {
     return []
@@ -51,9 +46,9 @@ function writeDeletedBookingKeys(keys: string[]) {
 function listDemoBookings() {
   const deletedKeys = new Set(readDeletedBookingKeys())
   const stored = readStoredBookings()
-  const filteredSeed = seedBookingRecords.filter(
-    (item) => !deletedKeys.has(getBookingKey(item.phone, item.email)),
-  )
+  const filteredSeed = seedBookingRecords
+    .filter((item) => !deletedKeys.has(getBookingKey(item.phone, item.email)))
+    .map((item) => normalizeBooking(item))
 
   return [...stored, ...filteredSeed]
 }
@@ -78,6 +73,46 @@ function resolveSlot(preferredSlot: string) {
   if (preferredSlot === '平日白天') return '2026/03/20 14:00'
   if (preferredSlot === '週末上午') return '2026/03/21 11:00'
   return '2026/03/20 19:30'
+}
+
+function resolveStageFromStatus(status: BookingRecord['status']): LeadStage {
+  if (status === '已完成') return '已成交'
+  if (status === '已確認') return '已預約體驗'
+  return '新名單'
+}
+
+function normalizeStage(value: unknown, status: BookingRecord['status']): LeadStage {
+  if (value === '新名單' || value === '已聯繫' || value === '已預約體驗' || value === '已成交' || value === '流失') {
+    return value
+  }
+  return resolveStageFromStatus(status)
+}
+
+function normalizeSource(value: unknown): LeadSource {
+  if (value === '網站表單' || value === 'AI 聊天' || value === 'LINE' || value === '電話' || value === 'Walk-in') {
+    return value
+  }
+  return '網站表單'
+}
+
+function normalizeBooking(item: Partial<BookingRecord> & Record<string, unknown>): BookingRecord {
+  const status = item.status === '已確認' || item.status === '已完成' ? item.status : '待回覆'
+  return {
+    name: typeof item.name === 'string' ? item.name : '',
+    phone: typeof item.phone === 'string' ? item.phone : '',
+    email: typeof item.email === 'string' ? item.email.toLowerCase() : '',
+    className: typeof item.className === 'string' ? item.className : '',
+    trainer: typeof item.trainer === 'string' ? item.trainer : '',
+    date: typeof item.date === 'string' ? item.date : '',
+    status,
+    notes: typeof item.notes === 'string' ? item.notes : '',
+    stage: normalizeStage(item.stage, status),
+    source: normalizeSource(item.source),
+    assignee: typeof item.assignee === 'string' ? item.assignee : '未指派',
+    nextFollowUpAt: typeof item.nextFollowUpAt === 'string' ? item.nextFollowUpAt : '',
+    createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+    updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString(),
+  }
 }
 
 function buildAssistantReply(message: string) {
@@ -116,6 +151,10 @@ export const demoApi: GymApi = {
       date: resolveSlot(payload.preferredSlot),
       status: '待回覆',
       notes: '',
+      stage: '新名單',
+      source: '網站表單',
+      assignee: '未指派',
+      nextFollowUpAt: '',
       createdAt: now,
       updatedAt: now,
     }
@@ -161,20 +200,34 @@ export const demoApi: GymApi = {
       )
 
     const now = new Date().toISOString()
-    const updated: BookingRecord = existing
-      ? { ...existing, status, updatedAt: now }
-      : {
-          name: '',
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          className: '',
-          trainer: '',
-          date: '',
-          status,
-          notes: '',
-          createdAt: now,
-          updatedAt: now,
-        }
+    const updated: BookingRecord = normalizeBooking(
+      existing
+        ? {
+            ...existing,
+            status,
+            stage:
+              existing.stage === '流失' || existing.stage === '已成交'
+                ? existing.stage
+                : resolveStageFromStatus(status),
+            updatedAt: now,
+          }
+        : {
+            name: '',
+            phone: normalizedPhone,
+            email: normalizedEmail,
+            className: '',
+            trainer: '',
+            date: '',
+            status,
+            notes: '',
+            stage: resolveStageFromStatus(status),
+            source: '網站表單',
+            assignee: '未指派',
+            nextFollowUpAt: '',
+            createdAt: now,
+            updatedAt: now,
+          },
+    )
 
     const next = [
       updated,
@@ -204,20 +257,26 @@ export const demoApi: GymApi = {
       )
 
     const now = new Date().toISOString()
-    const updated: BookingRecord = existing
-      ? { ...existing, ...patch, updatedAt: now }
-      : {
-          name: '',
-          phone: normalizedPhone,
-          email: normalizedEmail,
-          className: patch.className,
-          trainer: patch.trainer,
-          date: patch.date,
-          status: '待回覆',
-          notes: patch.notes ?? '',
-          createdAt: now,
-          updatedAt: now,
-        }
+    const updated: BookingRecord = normalizeBooking(
+      existing
+        ? { ...existing, ...patch, updatedAt: now }
+        : {
+            name: patch.name,
+            phone: normalizedPhone,
+            email: normalizedEmail,
+            className: patch.className,
+            trainer: patch.trainer,
+            date: patch.date,
+            status: '待回覆',
+            notes: patch.notes ?? '',
+            stage: patch.stage,
+            source: patch.source,
+            assignee: patch.assignee,
+            nextFollowUpAt: patch.nextFollowUpAt,
+            createdAt: now,
+            updatedAt: now,
+          },
+    )
 
     const next = [
       updated,

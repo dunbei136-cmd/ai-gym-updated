@@ -1,0 +1,47 @@
+[
+  {
+    "name": "Smoke Test",
+    "phone": "0900111222",
+    "email": "smoke@example.com",
+    "className": "新手燃脂體驗課",
+    "trainer": "Coach Aiden",
+    "date": "2026/03/20 19:30",
+    "status": "待回覆"
+  },
+  {
+    "name": "API??",
+    "phone": "0900000000",
+    "email": "api-test@example.com",
+    "className": "新手燃脂體驗課",
+    "trainer": "Coach Aiden",
+    "date": "2026/03/20 19:30",
+    "status": "待回覆"
+  },
+  {
+    "name": "王小美",
+    "phone": "0912345678",
+    "email": "amy.demo@example.com",
+    "className": "新手燃脂體驗課",
+    "trainer": "Coach Aiden",
+    "date": "2026/03/18 19:00",
+    "status": "已確認"
+  },
+  {
+    "name": "陳志豪",
+    "phone": "0987654321",
+    "email": "leo.demo@example.com",
+    "className": "增肌訓練諮詢",
+    "trainer": "Coach Vera",
+    "date": "2026/03/19 14:30",
+    "status": "待回覆"
+  },
+  {
+    "name": "林佩琪",
+    "phone": "0955667788",
+    "email": "peggy.demo@example.com",
+    "className": "團體核心課",
+    "trainer": "Coach Max",
+    "date": "2026/03/12 20:00",
+    "status": "已完成"
+  }
+]

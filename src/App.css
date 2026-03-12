@@ -23,7 +23,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -519,7 +520,14 @@ a {
   gap: 12px;
 }
 
-.admin-stat-card {
+.crm-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-stat-card,
+.crm-stat-card {
   padding: 16px 18px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -528,18 +536,33 @@ a {
   gap: 6px;
 }
 
-.admin-stat-card strong {
+.admin-stat-card strong,
+.crm-stat-card strong {
   font-size: 1.3rem;
 }
 
 .admin-stat-card span,
+.crm-stat-card span,
 .empty-admin-state {
   color: #bdcaea;
 }
 
+.crm-stat-action {
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.crm-stat-action.active {
+  border-color: rgba(255, 193, 77, 0.34);
+  background: rgba(255, 193, 77, 0.08);
+}
+
 .admin-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 170px 170px 170px 170px 140px 140px 140px 140px;
+  grid-template-columns: minmax(220px, 1.2fr) repeat(6, minmax(140px, 1fr)) repeat(2, minmax(130px, 1fr)) repeat(5, minmax(120px, 1fr));
   gap: 12px;
 }
 
@@ -710,7 +733,7 @@ a {
 
 .booking-table {
   width: 100%;
-  min-width: 820px;
+  min-width: 1240px;
   border-collapse: collapse;
 }
 
@@ -767,6 +790,10 @@ a {
   background: rgba(255, 193, 77, 0.06);
 }
 
+.booking-table tbody tr.followup-row {
+  box-shadow: inset 4px 0 0 rgba(255, 193, 77, 0.7);
+}
+
 .clickable-row {
   cursor: pointer;
 }
@@ -801,6 +828,58 @@ a {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.crm-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.stage-新名單 {
+  background: rgba(86, 160, 255, 0.16);
+  color: #9acbff;
+}
+
+.stage-已聯繫 {
+  background: rgba(65, 227, 214, 0.14);
+  color: #92f3ea;
+}
+
+.stage-已預約體驗 {
+  background: rgba(149, 120, 255, 0.16);
+  color: #d1c3ff;
+}
+
+.stage-已成交 {
+  background: rgba(47, 182, 140, 0.16);
+  color: #8df0bf;
+}
+
+.stage-流失 {
+  background: rgba(255, 92, 92, 0.14);
+  color: #ffb9b9;
+}
+
+.crm-source-text {
+  color: #8ec5ff;
+}
+
+.followup-due-text {
+  color: #ffd98f;
+}
+
+.booking-lookup-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
 .contact-row {
@@ -925,7 +1004,8 @@ a {
   padding: 0 12px;
 }
 
-.note-template-row {
+.note-template-row,
+.followup-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1040,6 +1120,7 @@ a {
   .chat-layout,
   .footer,
   .admin-stats-grid,
+  .crm-stats-grid,
   .filtered-stats-grid {
     grid-template-columns: 1fr;
     flex-direction: column;

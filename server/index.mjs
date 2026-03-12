@@ -114,6 +114,10 @@ const server = http.createServer(async (req, res) => {
         date: resolveSlot(preferredSlot),
         status: '待回覆',
         notes: '',
+        stage: '新名單',
+        source: '網站表單',
+        assignee: '未指派',
+        nextFollowUpAt: '',
       })
 
       json(res, 201, booking)
@@ -149,7 +153,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/bookings/details') {
     try {
       const body = await collectBody(req)
-      const { phone = '', email = '', name = '', className = '', trainer = '', date = '', notes = '' } = body
+      const {
+        phone = '',
+        email = '',
+        name = '',
+        className = '',
+        trainer = '',
+        date = '',
+        notes = '',
+        stage = '新名單',
+        source = '網站表單',
+        assignee = '未指派',
+        nextFollowUpAt = '',
+      } = body
 
       if (!phone.trim() || !email.trim() || !name.trim() || !className.trim() || !trainer.trim() || !date.trim()) {
         json(res, 400, { error: 'phone, email, name, className, trainer, date are required' })
@@ -162,6 +178,10 @@ const server = http.createServer(async (req, res) => {
         trainer: trainer.trim(),
         date: date.trim(),
         notes: typeof notes === 'string' ? notes.trim() : '',
+        stage: typeof stage === 'string' ? stage : '新名單',
+        source: typeof source === 'string' ? source : '網站表單',
+        assignee: typeof assignee === 'string' ? assignee.trim() || '未指派' : '未指派',
+        nextFollowUpAt: typeof nextFollowUpAt === 'string' ? nextFollowUpAt : '',
       })
       if (!updated) {
         json(res, 404, { error: 'Booking not found' })

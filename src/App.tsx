@@ -1,8 +1,11 @@
 import './App.css'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { faqItems, plans, quickReplies, testimonials } from './data/content'
 import { api, apiModeLabel } from './lib/api'
-import type { BookingDetailPatch, BookingRecord, ChatMessage, LeadForm } from './types'
+import type { BookingDetailPatch, BookingRecord, BookingStatus, ChatMessage, LeadForm, LeadSource, LeadStage } from './types'
+
+const stageOptions: LeadStage[] = ['新名單', '已聯繫', '已預約體驗', '已成交', '流失']
+const sourceOptions: LeadSource[] = ['網站表單', 'AI 聊天', 'LINE', '電話', 'Walk-in']
 
 function toDateTimeInputValue(value: string) {
   const matched = value.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/)
@@ -56,6 +59,20 @@ function formatAuditTime(value: string) {
   }).format(date)
 }
 
+function formatFollowUpLabel(value: string) {
+  if (!value) return '未安排'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('zh-TW', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
 function isOverdueBooking(booking: BookingRecord) {
   if (booking.status === '已完成') return false
 
@@ -69,11 +86,26 @@ function isOverdueBooking(booking: BookingRecord) {
   return bookingTime.getTime() < Date.now()
 }
 
+function isFollowUpDue(value: string) {
+  if (!value) return false
+  const timestamp = new Date(value).getTime()
+  return !Number.isNaN(timestamp) && timestamp <= Date.now()
+}
+
 function toLocalDateInputValue(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
+}
+
+function toLocalDateTimeValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hour}:${minute}`
 }
 
 function getSortIndicator(active: boolean) {
@@ -123,22 +155,30 @@ function App() {
     trainer: '',
     date: '',
     notes: '',
+    stage: '新名單',
+    source: '網站表單',
+    assignee: '未指派',
+    nextFollowUpAt: '',
   })
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
-  const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
+  const [adminStatus, setAdminStatus] = useState<'全部' | BookingStatus>('全部')
+  const [adminStage, setAdminStage] = useState<'全部階段' | LeadStage>('全部階段')
+  const [adminSource, setAdminSource] = useState<'全部來源' | LeadSource>('全部來源')
   const [adminTrainer, setAdminTrainer] = useState('全部教練')
   const [adminClass, setAdminClass] = useState('全部課程')
-  const [adminSort, setAdminSort] = useState<'最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z'>('最近更新')
+  const [adminAssignee, setAdminAssignee] = useState('全部負責人')
+  const [adminSort, setAdminSort] = useState<'最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z' | '追蹤時間近→遠'>('最近更新')
   const [adminStartDate, setAdminStartDate] = useState('')
   const [adminEndDate, setAdminEndDate] = useState('')
   const [adminOverdueOnly, setAdminOverdueOnly] = useState(false)
+  const [adminFollowUpOnly, setAdminFollowUpOnly] = useState(false)
   const [adminPage, setAdminPage] = useState(1)
   const [adminPageSize, setAdminPageSize] = useState<5 | 10 | 20>(5)
   const [adminSelectedOnly, setAdminSelectedOnly] = useState(false)
   const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
-  const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
+  const [batchStatus, setBatchStatus] = useState<BookingStatus>('待回覆')
 
   useEffect(() => {
     setLoadingBookings(true)
@@ -185,6 +225,10 @@ function App() {
       trainer: selectedBooking.trainer,
       date: selectedBooking.date,
       notes: selectedBooking.notes,
+      stage: selectedBooking.stage,
+      source: selectedBooking.source,
+      assignee: selectedBooking.assignee,
+      nextFollowUpAt: selectedBooking.nextFollowUpAt,
     })
   }, [selectedBooking])
 
@@ -207,12 +251,28 @@ function App() {
     [bookings],
   )
 
+  const crmStats = useMemo(
+    () => ({
+      newLeads: bookings.filter((item) => item.stage === '新名單').length,
+      contacted: bookings.filter((item) => item.stage === '已聯繫').length,
+      trial: bookings.filter((item) => item.stage === '已預約體驗').length,
+      won: bookings.filter((item) => item.stage === '已成交').length,
+      lost: bookings.filter((item) => item.stage === '流失').length,
+      followUpDue: bookings.filter((item) => isFollowUpDue(item.nextFollowUpAt)).length,
+    }),
+    [bookings],
+  )
+
   const trainerOptions = ['全部教練', ...new Set(bookings.map((booking) => booking.trainer))]
   const classOptions = ['全部課程', ...new Set(bookings.map((booking) => booking.className))]
+  const assigneeOptions = ['全部負責人', ...new Set(bookings.map((booking) => booking.assignee || '未指派'))]
 
   const filteredBookings = useMemo(() => {
     const filtered = bookings.filter((booking) => {
       const matchStatus = adminStatus === '全部' ? true : booking.status === adminStatus
+      const matchStage = adminStage === '全部階段' ? true : booking.stage === adminStage
+      const matchSource = adminSource === '全部來源' ? true : booking.source === adminSource
+      const matchAssignee = adminAssignee === '全部負責人' ? true : booking.assignee === adminAssignee
       const keyword = adminQuery.trim().toLowerCase()
       const matchKeyword =
         !keyword ||
@@ -220,7 +280,8 @@ function App() {
         booking.phone.includes(keyword) ||
         booking.email.toLowerCase().includes(keyword) ||
         booking.className.toLowerCase().includes(keyword) ||
-        booking.notes.toLowerCase().includes(keyword)
+        booking.notes.toLowerCase().includes(keyword) ||
+        booking.assignee.toLowerCase().includes(keyword)
 
       const bookingDateOnly = getBookingDateOnly(booking.date)
       const matchStartDate = !adminStartDate || (bookingDateOnly && bookingDateOnly >= adminStartDate)
@@ -228,9 +289,23 @@ function App() {
       const matchTrainer = adminTrainer === '全部教練' ? true : booking.trainer === adminTrainer
       const matchClass = adminClass === '全部課程' ? true : booking.className === adminClass
       const matchOverdueOnly = !adminOverdueOnly || isOverdueBooking(booking)
+      const matchFollowUpOnly = !adminFollowUpOnly || isFollowUpDue(booking.nextFollowUpAt)
       const matchSelectedOnly = !adminSelectedOnly || selectedBookingKeys.includes(getBookingKey(booking))
 
-      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchTrainer && matchClass && matchOverdueOnly && matchSelectedOnly
+      return (
+        matchStatus &&
+        matchStage &&
+        matchSource &&
+        matchAssignee &&
+        matchKeyword &&
+        matchStartDate &&
+        matchEndDate &&
+        matchTrainer &&
+        matchClass &&
+        matchOverdueOnly &&
+        matchFollowUpOnly &&
+        matchSelectedOnly
+      )
     })
 
     const sorted = [...filtered]
@@ -245,13 +320,23 @@ function App() {
       return sorted
     }
 
+    if (adminSort === '追蹤時間近→遠') {
+      sorted.sort((a, b) => {
+        if (!a.nextFollowUpAt && !b.nextFollowUpAt) return 0
+        if (!a.nextFollowUpAt) return 1
+        if (!b.nextFollowUpAt) return -1
+        return a.nextFollowUpAt.localeCompare(b.nextFollowUpAt)
+      })
+      return sorted
+    }
+
     sorted.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     return adminSort === '最早更新' ? sorted : sorted.reverse()
-  }, [adminClass, adminEndDate, adminOverdueOnly, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
+  }, [adminAssignee, adminClass, adminEndDate, adminFollowUpOnly, adminOverdueOnly, adminQuery, adminSelectedOnly, adminSort, adminSource, adminStage, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminClass, adminEndDate, adminOverdueOnly, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer])
+  }, [adminAssignee, adminClass, adminEndDate, adminFollowUpOnly, adminOverdueOnly, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminSource, adminStage, adminStartDate, adminStatus, adminTrainer])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
@@ -270,12 +355,16 @@ function App() {
   const activeFilterLabels = [
     adminQuery ? `關鍵字：${adminQuery}` : '',
     adminStatus !== '全部' ? `狀態：${adminStatus}` : '',
+    adminStage !== '全部階段' ? `階段：${adminStage}` : '',
+    adminSource !== '全部來源' ? `來源：${adminSource}` : '',
+    adminAssignee !== '全部負責人' ? `負責人：${adminAssignee}` : '',
     adminTrainer !== '全部教練' ? `教練：${adminTrainer}` : '',
     adminClass !== '全部課程' ? `課程：${adminClass}` : '',
     adminSort !== '最近更新' ? `排序：${adminSort}` : '',
     adminStartDate ? `開始：${adminStartDate}` : '',
     adminEndDate ? `結束：${adminEndDate}` : '',
     adminOverdueOnly ? '只看逾期待處理' : '',
+    adminFollowUpOnly ? '只看待追蹤' : '',
     adminSelectedOnly ? '只看已勾選' : '',
   ].filter(Boolean)
 
@@ -302,7 +391,11 @@ function App() {
       detailForm.className !== selectedBooking.className ||
       detailForm.trainer !== selectedBooking.trainer ||
       detailForm.date !== selectedBooking.date ||
-      detailForm.notes !== selectedBooking.notes)
+      detailForm.notes !== selectedBooking.notes ||
+      detailForm.stage !== selectedBooking.stage ||
+      detailForm.source !== selectedBooking.source ||
+      detailForm.assignee !== selectedBooking.assignee ||
+      detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt)
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -405,8 +498,11 @@ function App() {
       const booking = await api.createBooking(adminForm)
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
-      setSelectedBooking(booking)
+      setSelectedBooking(nextBookings.find((item) => getBookingKey(item) === getBookingKey(booking)) ?? booking)
       setAdminStatus('全部')
+      setAdminStage('全部階段')
+      setAdminSource('全部來源')
+      setAdminAssignee('全部負責人')
       setAdminQuery('')
       setAdminForm({
         name: '',
@@ -451,12 +547,16 @@ function App() {
   const resetAdminFilters = () => {
     setAdminQuery('')
     setAdminStatus('全部')
+    setAdminStage('全部階段')
+    setAdminSource('全部來源')
     setAdminTrainer('全部教練')
     setAdminClass('全部課程')
+    setAdminAssignee('全部負責人')
     setAdminSort('最近更新')
     setAdminStartDate('')
     setAdminEndDate('')
     setAdminOverdueOnly(false)
+    setAdminFollowUpOnly(false)
     setAdminSelectedOnly(false)
     setAdminPage(1)
   }
@@ -489,9 +589,16 @@ function App() {
     }
   }
 
+  const scheduleFollowUp = (hours: number) => {
+    const base = detailForm.nextFollowUpAt ? new Date(detailForm.nextFollowUpAt) : new Date()
+    if (Number.isNaN(base.getTime())) return
+    base.setHours(base.getHours() + hours)
+    setDetailForm((prev) => ({ ...prev, nextFollowUpAt: toLocalDateTimeValue(base) }))
+  }
+
   const downloadBookingsCsv = (targetBookings: BookingRecord[], filePrefix: string) => {
     const rows = [
-      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態', '備註', '建立時間', '更新時間'],
+      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態', '名單階段', '來源', '負責人', '下次追蹤', '備註', '建立時間', '更新時間'],
       ...targetBookings.map((booking) => [
         booking.name,
         booking.phone,
@@ -500,6 +607,10 @@ function App() {
         booking.trainer,
         booking.date,
         booking.status,
+        booking.stage,
+        booking.source,
+        booking.assignee,
+        booking.nextFollowUpAt,
         booking.notes,
         booking.createdAt,
         booking.updatedAt,
@@ -549,7 +660,7 @@ function App() {
   const changeBookingStatus = async (
     phone: string,
     email: string,
-    status: BookingRecord['status'],
+    status: BookingStatus,
   ) => {
     const key = `${phone}-${email}`
     setUpdatingKey(key)
@@ -649,12 +760,12 @@ function App() {
     }))
   }
 
-  const confirmLeaveDirtyDetail = () => {
+  const confirmLeaveDirtyDetail = useCallback(() => {
     if (!hasUnsavedDetailChanges) return true
     return window.confirm('目前有未儲存的變更，確定要離開這筆 booking 嗎？')
-  }
+  }, [hasUnsavedDetailChanges])
 
-  const saveBookingDetails = async () => {
+  const saveBookingDetails = useCallback(async () => {
     if (!selectedBooking) return
 
     if (
@@ -678,6 +789,10 @@ function App() {
         trainer: detailForm.trainer.trim(),
         date: detailForm.date.trim(),
         notes: detailForm.notes.trim(),
+        stage: detailForm.stage,
+        source: detailForm.source,
+        assignee: detailForm.assignee.trim() || '未指派',
+        nextFollowUpAt: detailForm.nextFollowUpAt,
       })
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
@@ -687,13 +802,13 @@ function App() {
         setLookupResult(updated)
       }
 
-      setNotice(`已儲存 ${updated.name} 的 booking 明細`)
+      setNotice(`已儲存 ${updated.name} 的 booking / CRM 明細`)
     } catch {
       setError('更新 booking 明細失敗，請稍後再試')
     } finally {
       setDetailSaving(false)
     }
-  }
+  }, [detailForm, lookupResult, selectedBooking])
 
   const deleteSelectedBooking = async () => {
     if (!selectedBooking) return
@@ -744,7 +859,7 @@ function App() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [confirmLeaveDirtyDetail, detailDeleting, detailSaving, hasUnsavedDetailChanges, selectedBooking])
+  }, [confirmLeaveDirtyDetail, detailDeleting, detailSaving, hasUnsavedDetailChanges, saveBookingDetails, selectedBooking])
 
   return (
     <div className="app-shell">
@@ -768,16 +883,16 @@ function App() {
       <header className="hero">
         <div className="hero-copy glass-card">
           <span className="eyebrow">Brand-ready · API-ready · Deployable MVP</span>
-          <h1>把健身房的接待、導流與預約查詢做成一個真的能 demo 的產品。</h1>
+          <h1>把健身房的接待、導流、預約查詢與 CRM 後台做成能 demo 的產品。</h1>
           <p className="hero-text">
-            這不是只有視覺稿。現在這版已經有品牌化首頁、聊天入口、FAQ、方案展示、預約建立、查詢結果，以及可切換的 API layer。
+            這不是只有視覺稿。現在這版已經有品牌化首頁、聊天入口、FAQ、方案展示、預約建立、查詢結果，以及 CRM-ready 的 admin 管理區。
           </p>
           <div className="hero-actions">
             <a href="#lead-capture" className="primary-btn">
               立即體驗預約流程
             </a>
-            <a href="#booking-lookup" className="secondary-btn">
-              查看 Booking Lookup
+            <a href="#admin-snapshot" className="secondary-btn">
+              查看 CRM 後台
             </a>
           </div>
           <div className="hero-stats">
@@ -797,7 +912,7 @@ function App() {
             <li>可部署到 Vercel / Netlify</li>
             <li>Demo API 與 HTTP API 切換結構</li>
             <li>預約建立 → 查詢閉環</li>
-            <li>之後可直接接 CRM / LINE / 真實後端</li>
+            <li>CRM 名單階段 / 來源 / 負責人 / follow-up</li>
           </ul>
           <div className="mode-card">
             <span>Current mode</span>
@@ -823,7 +938,7 @@ function App() {
               </div>
               <div>
                 <strong>名單收集 + 預約建立</strong>
-                <p>使用者可留下需求，系統立即產生一筆可查詢的 booking。</p>
+                <p>使用者可留下需求，系統立即產生一筆可查詢、可追蹤的 booking。</p>
               </div>
             </div>
           </article>
@@ -838,7 +953,7 @@ function App() {
               </div>
               <div>
                 <strong>CRM / 後台 / LINE OA</strong>
-                <p>未來只要補後端服務與 webhook，就能延伸成正式產品。</p>
+                <p>這版已把 CRM 核心欄位先做進來，之後可直接接正式後端與 webhook。</p>
               </div>
             </div>
           </article>
@@ -962,7 +1077,10 @@ function App() {
             <div className={`booking-card ${lookupResult ? 'success' : 'empty'}`}>
               {lookupResult ? (
                 <>
-                  <span className="status-pill">{lookupResult.status}</span>
+                  <div className="booking-lookup-badges">
+                    <span className={`status-pill status-${lookupResult.status}`}>{lookupResult.status}</span>
+                    <span className={`crm-pill stage-${lookupResult.stage}`}>{lookupResult.stage}</span>
+                  </div>
                   <h3>{lookupResult.name}</h3>
                   <ul>
                     <li>
@@ -1049,7 +1167,7 @@ function App() {
                   <p>
                     {leadSubmitted.name} / {leadSubmitted.phone} / {leadSubmitted.email}
                   </p>
-                  <p>你現在可以直接到上方 Booking Lookup 查這筆資料。</p>
+                  <p>這筆名單會直接進 CRM 後台，預設階段為「新名單」。</p>
                 </>
               ) : (
                 <p>填完資料後，會建立一筆新的 booking，形成前台完整閉環。</p>
@@ -1079,9 +1197,9 @@ function App() {
           <div className="section-heading compact">
             <div>
               <p className="section-kicker">Admin Dashboard</p>
-              <h2>預約後台頁</h2>
+              <h2>預約 / CRM 後台頁</h2>
             </div>
-            <p className="section-note">直接讀 API booking 清單，帶搜尋、篩選與狀態總覽。</p>
+            <p className="section-note">直接讀 API booking 清單，帶搜尋、篩選、狀態總覽與 CRM 追蹤欄位。</p>
           </div>
 
           {error ? <p className="error-text admin-feedback">{error}</p> : null}
@@ -1151,17 +1269,56 @@ function App() {
             </div>
           </div>
 
-          <div className="admin-toolbar">
+          <div className="crm-stats-grid">
+            <div className="crm-stat-card">
+              <strong>{crmStats.newLeads}</strong>
+              <span>新名單</span>
+            </div>
+            <div className="crm-stat-card">
+              <strong>{crmStats.contacted}</strong>
+              <span>已聯繫</span>
+            </div>
+            <div className="crm-stat-card">
+              <strong>{crmStats.trial}</strong>
+              <span>已預約體驗</span>
+            </div>
+            <div className="crm-stat-card">
+              <strong>{crmStats.won}</strong>
+              <span>已成交</span>
+            </div>
+            <div className="crm-stat-card">
+              <strong>{crmStats.lost}</strong>
+              <span>流失</span>
+            </div>
+            <button className={`crm-stat-card crm-stat-action ${adminFollowUpOnly ? 'active' : ''}`} onClick={() => setAdminFollowUpOnly((prev) => !prev)}>
+              <strong>{crmStats.followUpDue}</strong>
+              <span>待追蹤</span>
+            </button>
+          </div>
+
+          <div className="admin-toolbar admin-toolbar-crm">
             <input
               value={adminQuery}
               onChange={(event) => setAdminQuery(event.target.value)}
-              placeholder="搜尋姓名 / 手機 / Email / 課程"
+              placeholder="搜尋姓名 / 手機 / Email / 課程 / 負責人"
             />
-            <select value={adminStatus} onChange={(event) => setAdminStatus(event.target.value as '全部' | '待回覆' | '已確認' | '已完成')}>
+            <select value={adminStatus} onChange={(event) => setAdminStatus(event.target.value as '全部' | BookingStatus)}>
               <option>全部</option>
               <option>待回覆</option>
               <option>已確認</option>
               <option>已完成</option>
+            </select>
+            <select value={adminStage} onChange={(event) => setAdminStage(event.target.value as '全部階段' | LeadStage)}>
+              <option>全部階段</option>
+              {stageOptions.map((stage) => (
+                <option key={stage}>{stage}</option>
+              ))}
+            </select>
+            <select value={adminSource} onChange={(event) => setAdminSource(event.target.value as '全部來源' | LeadSource)}>
+              <option>全部來源</option>
+              {sourceOptions.map((source) => (
+                <option key={source}>{source}</option>
+              ))}
             </select>
             <select value={adminTrainer} onChange={(event) => setAdminTrainer(event.target.value)}>
               {trainerOptions.map((trainer) => (
@@ -1173,10 +1330,16 @@ function App() {
                 <option key={className}>{className}</option>
               ))}
             </select>
-            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z')}>
+            <select value={adminAssignee} onChange={(event) => setAdminAssignee(event.target.value)}>
+              {assigneeOptions.map((assignee) => (
+                <option key={assignee}>{assignee}</option>
+              ))}
+            </select>
+            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z' | '追蹤時間近→遠')}>
               <option>最近更新</option>
               <option>最早更新</option>
               <option>預約時間新→舊</option>
+              <option>追蹤時間近→遠</option>
               <option>姓名 A-Z</option>
             </select>
             <input type="date" value={adminStartDate} onChange={(event) => setAdminStartDate(event.target.value)} />
@@ -1186,6 +1349,9 @@ function App() {
             </button>
             <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminOverdueOnly((prev) => !prev)}>
               {adminOverdueOnly ? '顯示全部' : '逾期待處理'}
+            </button>
+            <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminFollowUpOnly((prev) => !prev)}>
+              {adminFollowUpOnly ? '全部名單' : '待追蹤'}
             </button>
             <button className="secondary-btn admin-selected-btn" onClick={() => setAdminSelectedOnly((prev) => !prev)} disabled={selectedBookingKeys.length === 0 && !adminSelectedOnly}>
               {adminSelectedOnly ? '顯示全部' : '只看已勾選'}
@@ -1202,8 +1368,14 @@ function App() {
             <button className="secondary-btn quick-filter-btn" onClick={applyThisWeekFilter}>
               本週
             </button>
+            <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('新名單')}>
+              新名單
+            </button>
+            <button className="secondary-btn quick-filter-btn" onClick={() => setAdminStage('已聯繫')}>
+              已聯繫
+            </button>
             <button className="secondary-btn quick-filter-btn" onClick={resetAdminFilters}>
-              全部時間
+              清空全部
             </button>
           </div>
 
@@ -1254,7 +1426,7 @@ function App() {
               複製 Email
             </button>
             <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
-            <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingRecord['status'])}>
+            <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingStatus)}>
               <option>待回覆</option>
               <option>已確認</option>
               <option>已完成</option>
@@ -1293,7 +1465,7 @@ function App() {
                 </div>
 
                 <div className="booking-table-wrap">
-                  <table className="booking-table">
+                  <table className="booking-table booking-table-crm">
                     <thead>
                       <tr>
                         <th className="number-column">#</th>
@@ -1303,11 +1475,17 @@ function App() {
                             姓名{getSortIndicator(adminSort === '姓名 A-Z')}
                           </button>
                         </th>
+                        <th>CRM</th>
                         <th>課程 / 教練</th>
                         <th>聯絡方式</th>
                         <th>
                           <button className="sort-header-btn" onClick={() => setAdminSort('預約時間新→舊')}>
                             時間{getSortIndicator(adminSort === '預約時間新→舊')}
+                          </button>
+                        </th>
+                        <th>
+                          <button className="sort-header-btn" onClick={() => setAdminSort('追蹤時間近→遠')}>
+                            下次追蹤{getSortIndicator(adminSort === '追蹤時間近→遠')}
                           </button>
                         </th>
                         <th>
@@ -1328,11 +1506,12 @@ function App() {
                         const isUpdating = updatingKey === bookingKey
                         const isSelectedRow = selectedBooking?.phone === booking.phone && selectedBooking?.email === booking.email
                         const isOverdueRow = isOverdueBooking(booking)
+                        const isFollowUpRow = isFollowUpDue(booking.nextFollowUpAt)
 
                         return (
                           <tr
                             key={bookingKey}
-                            className={`${isSelectedRow ? 'active-row ' : ''}${isOverdueRow ? 'overdue-row ' : ''}clickable-row`}
+                            className={`${isSelectedRow ? 'active-row ' : ''}${isOverdueRow ? 'overdue-row ' : ''}${isFollowUpRow ? 'followup-row ' : ''}clickable-row`}
                             onClick={() => {
                               setSelectedBooking(booking)
                               setError('')
@@ -1349,6 +1528,13 @@ function App() {
                             </td>
                             <td>
                               <strong>{booking.name}</strong>
+                            </td>
+                            <td>
+                              <div className="booking-table-stack">
+                                <span className={`crm-pill stage-${booking.stage}`}>{booking.stage}</span>
+                                <span className="crm-source-text">{booking.source}</span>
+                                <span>負責：{booking.assignee}</span>
+                              </div>
                             </td>
                             <td>
                               <div className="booking-table-stack">
@@ -1374,6 +1560,12 @@ function App() {
                               </div>
                             </td>
                             <td>{formatBookingDateLabel(booking.date)}</td>
+                            <td>
+                              <div className="booking-table-stack">
+                                <span className={isFollowUpRow ? 'followup-due-text' : ''}>{formatFollowUpLabel(booking.nextFollowUpAt)}</span>
+                                {isFollowUpRow ? <span className="followup-due-text">待處理</span> : null}
+                              </div>
+                            </td>
                             <td>{formatAuditTime(booking.updatedAt)}</td>
                             <td>
                               <div className="booking-table-stack">
@@ -1386,7 +1578,7 @@ function App() {
                                     void changeBookingStatus(
                                       booking.phone,
                                       booking.email,
-                                      event.target.value as BookingRecord['status'],
+                                      event.target.value as BookingStatus,
                                     )
                                   }
                                 >
@@ -1491,7 +1683,7 @@ function App() {
                       void changeBookingStatus(
                         selectedBooking.phone,
                         selectedBooking.email,
-                        event.target.value as BookingRecord['status'],
+                        event.target.value as BookingStatus,
                       )
                     }
                   >
@@ -1546,6 +1738,49 @@ function App() {
                   <strong>{formatAuditTime(selectedBooking.updatedAt)}</strong>
                 </div>
                 <label className="detail-field">
+                  <span>名單階段</span>
+                  <select value={detailForm.stage} onChange={(event) => updateDetailForm('stage', event.target.value as LeadStage)}>
+                    {stageOptions.map((stage) => (
+                      <option key={stage}>{stage}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="detail-field">
+                  <span>來源</span>
+                  <select value={detailForm.source} onChange={(event) => updateDetailForm('source', event.target.value as LeadSource)}>
+                    {sourceOptions.map((source) => (
+                      <option key={source}>{source}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="detail-field">
+                  <span>負責人</span>
+                  <input
+                    value={detailForm.assignee}
+                    onChange={(event) => updateDetailForm('assignee', event.target.value)}
+                    placeholder="例如：Nina"
+                  />
+                </label>
+                <label className="detail-field">
+                  <span>下次追蹤</span>
+                  <input
+                    type="datetime-local"
+                    value={detailForm.nextFollowUpAt}
+                    onChange={(event) => updateDetailForm('nextFollowUpAt', event.target.value)}
+                  />
+                  <div className="followup-quick-actions">
+                    <button className="secondary-btn note-template-btn" onClick={() => scheduleFollowUp(24)}>
+                      +24h
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => scheduleFollowUp(72)}>
+                      +3天
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => updateDetailForm('nextFollowUpAt', '')}>
+                      清除
+                    </button>
+                  </div>
+                </label>
+                <label className="detail-field">
                   <span>姓名</span>
                   <input
                     value={detailForm.name}
@@ -1590,6 +1825,9 @@ function App() {
                     <button className="secondary-btn note-template-btn" onClick={() => appendNoteTemplate('可列入回訪名單')}>
                       回訪名單
                     </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendNoteTemplate('已加 LINE，待傳報價')}>
+                      傳報價
+                    </button>
                   </div>
                   <textarea
                     value={detailForm.notes}
@@ -1617,6 +1855,10 @@ function App() {
                       trainer: selectedBooking.trainer,
                       date: selectedBooking.date,
                       notes: selectedBooking.notes,
+                      stage: selectedBooking.stage,
+                      source: selectedBooking.source,
+                      assignee: selectedBooking.assignee,
+                      nextFollowUpAt: selectedBooking.nextFollowUpAt,
                     })
                   }
                   disabled={detailSaving || detailDeleting || !hasUnsavedDetailChanges}
@@ -1639,7 +1881,7 @@ function App() {
       <footer className="footer glass-card">
         <div>
           <strong>PulseFit AI</strong>
-          <p>Deployable front-end MVP for gym concierge, FAQ, booking lookup, and lead capture.</p>
+          <p>Deployable front-end MVP for gym concierge, FAQ, booking lookup, lead capture, and CRM follow-up.</p>
         </div>
         <div className="footer-meta">
           <span>API mode: {apiModeLabel}</span>
