@@ -89,6 +89,7 @@ function App() {
     },
   ])
   const [chatInput, setChatInput] = useState('')
+  const [chatCooldownUntil, setChatCooldownUntil] = useState(0)
   const [lookupPhone, setLookupPhone] = useState('0912345678')
   const [lookupEmail, setLookupEmail] = useState('amy.demo@example.com')
   const [activeFaq, setActiveFaq] = useState<number | null>(0)
@@ -306,6 +307,33 @@ function App() {
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
     if (!message) return
+
+    if (message.length < 2) {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '問題可以再具體一點，例如「會員費用多少」或「幫我推薦新手課」。' },
+      ])
+      return
+    }
+
+    if (Date.now() < chatCooldownUntil) {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '先等一下，我剛回完上一題，避免重複送出。' },
+      ])
+      return
+    }
+
+    const lastUserMessage = [...chatMessages].reverse().find((item) => item.role === 'user')
+    if (lastUserMessage && lastUserMessage.content.trim() === message) {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: '這題你剛剛問過，我已經回在上面了；若要我換個角度回答，可以直接補充條件。' },
+      ])
+      return
+    }
+
+    setChatCooldownUntil(Date.now() + 1500)
 
     const userMessage: ChatMessage = { role: 'user', content: message }
     setChatMessages((prev) => [...prev, userMessage])
@@ -874,7 +902,9 @@ function App() {
                   onChange={(event) => setChatInput(event.target.value)}
                   placeholder="例如：我是新手，想找減脂課程"
                 />
-                <button onClick={() => void sendMessage()}>送出</button>
+                <button onClick={() => void sendMessage()} disabled={Date.now() < chatCooldownUntil || chatInput.trim().length < 2}>
+                  送出
+                </button>
               </div>
             </div>
           </div>
