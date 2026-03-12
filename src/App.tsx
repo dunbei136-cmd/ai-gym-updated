@@ -159,6 +159,7 @@ function App() {
     source: '網站表單',
     assignee: '未指派',
     nextFollowUpAt: '',
+    activityLog: [],
   })
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailDeleting, setDetailDeleting] = useState(false)
@@ -231,6 +232,7 @@ function App() {
       source: selectedBooking.source,
       assignee: selectedBooking.assignee,
       nextFollowUpAt: selectedBooking.nextFollowUpAt,
+      activityLog: selectedBooking.activityLog,
     })
   }, [selectedBooking])
 
@@ -397,7 +399,8 @@ function App() {
       detailForm.stage !== selectedBooking.stage ||
       detailForm.source !== selectedBooking.source ||
       detailForm.assignee !== selectedBooking.assignee ||
-      detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt)
+      detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt ||
+      JSON.stringify(detailForm.activityLog) !== JSON.stringify(selectedBooking.activityLog))
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -739,6 +742,7 @@ function App() {
             notes: booking.notes,
             source: booking.source,
             nextFollowUpAt: booking.nextFollowUpAt,
+            activityLog: booking.activityLog,
             stage: batchStage === '不變' ? booking.stage : batchStage,
             assignee: batchAssignee.trim() || booking.assignee,
           }),
@@ -840,6 +844,7 @@ function App() {
         source: detailForm.source,
         assignee: detailForm.assignee.trim() || '未指派',
         nextFollowUpAt: detailForm.nextFollowUpAt,
+        activityLog: detailForm.activityLog,
       })
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
@@ -1928,6 +1933,7 @@ function App() {
                       source: selectedBooking.source,
                       assignee: selectedBooking.assignee,
                       nextFollowUpAt: selectedBooking.nextFollowUpAt,
+                      activityLog: selectedBooking.activityLog,
                     })
                   }
                   disabled={detailSaving || detailDeleting || !hasUnsavedDetailChanges}

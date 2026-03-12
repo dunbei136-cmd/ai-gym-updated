@@ -20,13 +20,14 @@ export type BookingRecord = {
   source: LeadSource
   assignee: string
   nextFollowUpAt: string
+  activityLog: string[]
   createdAt: string
   updatedAt: string
 }
 
 export type BookingDetailPatch = Pick<
   BookingRecord,
-  'name' | 'className' | 'trainer' | 'date' | 'notes' | 'stage' | 'source' | 'assignee' | 'nextFollowUpAt'
+  'name' | 'className' | 'trainer' | 'date' | 'notes' | 'stage' | 'source' | 'assignee' | 'nextFollowUpAt' | 'activityLog'
 >
 
 export type ChatMessage = {

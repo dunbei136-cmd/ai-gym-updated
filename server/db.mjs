@@ -22,6 +22,7 @@ const seedBookings = [
     source: '網站表單',
     assignee: 'Nina',
     nextFollowUpAt: '2026-03-17T10:00',
+    activityLog: ['2026-03-10 19:10 建立名單', '2026-03-12 20:30 已電話確認體驗課'],
     notes: '已完成初步體驗課確認，可追蹤轉正式會員。',
   },
   {
@@ -36,6 +37,7 @@ const seedBookings = [
     source: 'AI 聊天',
     assignee: 'Mason',
     nextFollowUpAt: '2026-03-13T11:00',
+    activityLog: ['2026-03-11 17:20 AI 聊天導入', '2026-03-12 18:00 已加 LINE，待傳課程建議'],
     notes: '偏好下午時段，對重訓課表很有興趣。',
   },
   {
@@ -50,6 +52,7 @@ const seedBookings = [
     source: 'LINE',
     assignee: 'Nina',
     nextFollowUpAt: '',
+    activityLog: ['2026-03-09 15:45 LINE 詢問團課', '2026-03-12 21:30 已完成體驗，列回訪名單'],
     notes: '已完成體驗，可作為回訪名單。',
   },
 ]
@@ -75,6 +78,7 @@ db.exec(`
     source TEXT NOT NULL DEFAULT '網站表單',
     assignee TEXT NOT NULL DEFAULT '未指派',
     nextFollowUpAt TEXT NOT NULL DEFAULT '',
+    activityLog TEXT NOT NULL DEFAULT '[]',
     createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(phone, email)
@@ -94,11 +98,23 @@ ensureColumn('stage', `TEXT NOT NULL DEFAULT '新名單'`)
 ensureColumn('source', `TEXT NOT NULL DEFAULT '網站表單'`)
 ensureColumn('assignee', `TEXT NOT NULL DEFAULT '未指派'`)
 ensureColumn('nextFollowUpAt', `TEXT NOT NULL DEFAULT ''`)
+ensureColumn('activityLog', `TEXT NOT NULL DEFAULT '[]'`)
 
 function resolveStageFromStatus(status) {
   if (status === '已完成') return '已成交'
   if (status === '已確認') return '已預約體驗'
   return '新名單'
+}
+
+function parseActivityLog(value) {
+  if (!value) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry === 'string') : []
+  } catch {
+    return []
+  }
 }
 
 function normalizeRow(row) {
@@ -116,6 +132,7 @@ function normalizeRow(row) {
     source: row.source || '網站表單',
     assignee: row.assignee || '未指派',
     nextFollowUpAt: row.nextFollowUpAt ?? '',
+    activityLog: parseActivityLog(row.activityLog),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
@@ -141,9 +158,9 @@ function seedIfEmpty() {
 
   const insert = db.prepare(`
     INSERT OR IGNORE INTO bookings (
-      name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, createdAt, updatedAt
+      name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, activityLog, createdAt, updatedAt
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `)
 
   db.exec('BEGIN')
@@ -162,6 +179,7 @@ function seedIfEmpty() {
         row.source ?? '網站表單',
         row.assignee ?? '未指派',
         row.nextFollowUpAt ?? '',
+        JSON.stringify(Array.isArray(row.activityLog) ? row.activityLog : []),
       )
     }
     db.exec('COMMIT')
@@ -175,7 +193,7 @@ seedIfEmpty()
 
 export function listBookings() {
   const rows = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, createdAt, updatedAt
+    SELECT name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, activityLog, createdAt, updatedAt
     FROM bookings
     ORDER BY datetime(updatedAt) DESC, id DESC
   `).all()
@@ -185,7 +203,7 @@ export function listBookings() {
 
 export function lookupBooking(phone, email) {
   const row = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, createdAt, updatedAt
+    SELECT name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, activityLog, createdAt, updatedAt
     FROM bookings
     WHERE phone = ? AND lower(email) = lower(?)
     LIMIT 1
@@ -197,9 +215,9 @@ export function lookupBooking(phone, email) {
 export function upsertBooking(booking) {
   db.prepare(`
     INSERT INTO bookings (
-      name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, createdAt, updatedAt
+      name, phone, email, className, trainer, date, status, notes, stage, source, assignee, nextFollowUpAt, activityLog, createdAt, updatedAt
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(phone, email) DO UPDATE SET
       name = excluded.name,
       className = excluded.className,
@@ -211,6 +229,7 @@ export function upsertBooking(booking) {
       source = excluded.source,
       assignee = excluded.assignee,
       nextFollowUpAt = excluded.nextFollowUpAt,
+      activityLog = excluded.activityLog,
       updatedAt = CURRENT_TIMESTAMP
   `).run(
     booking.name,
@@ -225,6 +244,7 @@ export function upsertBooking(booking) {
     booking.source ?? '網站表單',
     booking.assignee ?? '未指派',
     booking.nextFollowUpAt ?? '',
+    JSON.stringify(Array.isArray(booking.activityLog) ? booking.activityLog : []),
   )
 
   return lookupBooking(booking.phone, booking.email)
@@ -251,7 +271,7 @@ export function updateBookingStatus(phone, email, status) {
 export function updateBookingDetails(phone, email, patch) {
   db.prepare(`
     UPDATE bookings
-    SET name = ?, className = ?, trainer = ?, date = ?, notes = ?, stage = ?, source = ?, assignee = ?, nextFollowUpAt = ?, updatedAt = CURRENT_TIMESTAMP
+    SET name = ?, className = ?, trainer = ?, date = ?, notes = ?, stage = ?, source = ?, assignee = ?, nextFollowUpAt = ?, activityLog = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE phone = ? AND lower(email) = lower(?)
   `).run(
     patch.name,
@@ -263,6 +283,7 @@ export function updateBookingDetails(phone, email, patch) {
     patch.source ?? '網站表單',
     patch.assignee ?? '未指派',
     patch.nextFollowUpAt ?? '',
+    JSON.stringify(Array.isArray(patch.activityLog) ? patch.activityLog : []),
     phone.trim(),
     email.trim().toLowerCase(),
   )

@@ -104,6 +104,7 @@ const server = http.createServer(async (req, res) => {
         return
       }
 
+      const now = new Date().toISOString()
       const program = resolveProgram(goal)
       const booking = upsertBooking({
         name: name.trim(),
@@ -118,6 +119,7 @@ const server = http.createServer(async (req, res) => {
         source: '網站表單',
         assignee: '未指派',
         nextFollowUpAt: '',
+        activityLog: [`${now.slice(0, 16).replace('T', ' ')} 建立名單`],
       })
 
       json(res, 201, booking)
@@ -165,6 +167,7 @@ const server = http.createServer(async (req, res) => {
         source = '網站表單',
         assignee = '未指派',
         nextFollowUpAt = '',
+        activityLog = [],
       } = body
 
       if (!phone.trim() || !email.trim() || !name.trim() || !className.trim() || !trainer.trim() || !date.trim()) {
@@ -182,6 +185,7 @@ const server = http.createServer(async (req, res) => {
         source: typeof source === 'string' ? source : '網站表單',
         assignee: typeof assignee === 'string' ? assignee.trim() || '未指派' : '未指派',
         nextFollowUpAt: typeof nextFollowUpAt === 'string' ? nextFollowUpAt : '',
+        activityLog: Array.isArray(activityLog) ? activityLog.filter((entry) => typeof entry === 'string') : [],
       })
       if (!updated) {
         json(res, 404, { error: 'Booking not found' })

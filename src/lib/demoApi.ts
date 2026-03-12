@@ -114,6 +114,9 @@ function normalizeBooking(item: Partial<BookingRecord> & Record<string, unknown>
     source: normalizeSource(item.source),
     assignee: typeof item.assignee === 'string' ? item.assignee : '未指派',
     nextFollowUpAt: typeof item.nextFollowUpAt === 'string' ? item.nextFollowUpAt : '',
+    activityLog: Array.isArray(item.activityLog)
+      ? item.activityLog.filter((entry): entry is string => typeof entry === 'string')
+      : [],
     createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
     updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString(),
   }
@@ -159,6 +162,7 @@ export const demoApi: GymApi = {
       source: '網站表單',
       assignee: '未指派',
       nextFollowUpAt: '',
+      activityLog: [`${now.slice(0, 16).replace('T', ' ')} 建立名單`],
       createdAt: now,
       updatedAt: now,
     }
@@ -228,6 +232,7 @@ export const demoApi: GymApi = {
             source: '網站表單',
             assignee: '未指派',
             nextFollowUpAt: '',
+            activityLog: [],
             createdAt: now,
             updatedAt: now,
           },
@@ -277,6 +282,7 @@ export const demoApi: GymApi = {
             source: patch.source,
             assignee: patch.assignee,
             nextFollowUpAt: patch.nextFollowUpAt,
+            activityLog: patch.activityLog ?? [],
             createdAt: now,
             updatedAt: now,
           },
