@@ -76,6 +76,10 @@ function toLocalDateInputValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+function getSortIndicator(active: boolean) {
+  return active ? ' ↓' : ''
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -1256,11 +1260,26 @@ function App() {
                       <tr>
                         <th className="number-column">#</th>
                         <th className="checkbox-column">選取</th>
-                        <th>姓名</th>
+                        <th>
+                          <button className="sort-header-btn" onClick={() => setAdminSort('姓名 A-Z')}>
+                            姓名{getSortIndicator(adminSort === '姓名 A-Z')}
+                          </button>
+                        </th>
                         <th>課程 / 教練</th>
                         <th>聯絡方式</th>
-                        <th>時間</th>
-                        <th>最後更新</th>
+                        <th>
+                          <button className="sort-header-btn" onClick={() => setAdminSort('預約時間新→舊')}>
+                            時間{getSortIndicator(adminSort === '預約時間新→舊')}
+                          </button>
+                        </th>
+                        <th>
+                          <button
+                            className="sort-header-btn"
+                            onClick={() => setAdminSort((prev) => (prev === '最近更新' ? '最早更新' : '最近更新'))}
+                          >
+                            最後更新{getSortIndicator(adminSort === '最近更新' || adminSort === '最早更新')}
+                          </button>
+                        </th>
                         <th>狀態</th>
                         <th>操作</th>
                       </tr>

@@ -724,6 +724,18 @@ a {
   background: rgba(9, 15, 27, 0.96);
 }
 
+.sort-header-btn {
+  padding: 0;
+  color: inherit;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
 .booking-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.03);
 }
