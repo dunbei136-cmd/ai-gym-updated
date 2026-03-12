@@ -139,13 +139,11 @@ try {
 
   await page.getByRole('button', { name: '清除篩選' }).click().catch(() => {})
   await page.waitForTimeout(400)
-  await page.locator('.pipeline-column').filter({ hasText: '已聯繫' }).locator('.pipeline-mini-card', { hasText: name }).first().dragTo(
-    page.locator('.pipeline-column').filter({ hasText: '已成交' }).first(),
-  )
-
-  await page.waitForTimeout(1200)
-  await page.locator('.pipeline-column').filter({ hasText: '已成交' }).locator('.pipeline-mini-card', { hasText: name }).first().click()
+  await page.locator('.pipeline-column').filter({ hasText: '已聯繫' }).locator('.pipeline-mini-card', { hasText: name }).first().click()
   await page.locator('.detail-panel').waitFor()
+  await page.getByRole('button', { name: '已成交', exact: true }).click()
+  await page.getByRole('button', { name: '儲存明細' }).click()
+  await page.waitForTimeout(1200)
 
   const stageValue = await page.locator('.detail-panel .detail-field').filter({ hasText: /^名單階段/ }).locator('select').inputValue()
   const assigneeValue = await page.locator('.detail-panel .detail-field').filter({ hasText: /^負責人/ }).locator('input').first().inputValue()

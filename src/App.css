@@ -873,6 +873,10 @@ a {
   cursor: pointer;
 }
 
+.locked-row {
+  cursor: not-allowed;
+}
+
 .booking-table tbody tr:last-child td {
   border-bottom: none;
 }

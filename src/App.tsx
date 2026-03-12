@@ -432,6 +432,7 @@ function App() {
       detailForm.assignee !== selectedBooking.assignee ||
       detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt ||
       JSON.stringify(detailForm.activityLog) !== JSON.stringify(selectedBooking.activityLog))
+  const interactionLocked = busy || detailSaving || detailDeleting || !!dragBookingKey
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -922,6 +923,17 @@ function App() {
     if (!hasUnsavedDetailChanges) return true
     return window.confirm('目前有未儲存的變更，確定要離開這筆 booking 嗎？')
   }, [hasUnsavedDetailChanges])
+
+  const openBookingDetails = useCallback(
+    (booking: BookingRecord) => {
+      if (interactionLocked) return
+      if (selectedBooking && getBookingKey(selectedBooking) === getBookingKey(booking)) return
+      if (!confirmLeaveDirtyDetail()) return
+      setSelectedBooking(booking)
+      setError('')
+    },
+    [confirmLeaveDirtyDetail, interactionLocked, selectedBooking],
+  )
 
   const saveBookingDetails = useCallback(async () => {
     if (!selectedBooking) return
@@ -1461,6 +1473,7 @@ function App() {
                 key={column.stage}
                 className={`pipeline-column ${adminStage === column.stage ? 'active' : ''} ${dragStageTarget === column.stage ? 'drag-target' : ''}`}
                 onDragOver={(event) => {
+                  if (interactionLocked) return
                   event.preventDefault()
                   if (dragBookingKey) setDragStageTarget(column.stage)
                 }}
@@ -1468,6 +1481,7 @@ function App() {
                   if (dragStageTarget === column.stage) setDragStageTarget('')
                 }}
                 onDrop={(event) => {
+                  if (interactionLocked) return
                   event.preventDefault()
                   const bookingKey = event.dataTransfer.getData('text/plain')
                   const targetBooking = filteredBookings.find((booking) => getBookingKey(booking) === bookingKey)
@@ -1493,8 +1507,13 @@ function App() {
                         <button
                           key={bookingKey}
                           className={`pipeline-mini-card ${isDraggingCard ? 'dragging' : ''}`}
-                          draggable
+                          draggable={!interactionLocked}
+                          disabled={interactionLocked}
                           onDragStart={(event) => {
+                            if (interactionLocked) {
+                              event.preventDefault()
+                              return
+                            }
                             event.dataTransfer.setData('text/plain', bookingKey)
                             event.dataTransfer.effectAllowed = 'move'
                             setDragBookingKey(bookingKey)
@@ -1503,10 +1522,7 @@ function App() {
                             setDragBookingKey('')
                             setDragStageTarget('')
                           }}
-                          onClick={() => {
-                            setSelectedBooking(booking)
-                            setError('')
-                          }}
+                          onClick={() => openBookingDetails(booking)}
                         >
                           <strong>{booking.name}</strong>
                           <span>{booking.className}</span>
@@ -1760,11 +1776,8 @@ function App() {
                         return (
                           <tr
                             key={bookingKey}
-                            className={`${isSelectedRow ? 'active-row ' : ''}${isOverdueRow ? 'overdue-row ' : ''}${isFollowUpRow ? 'followup-row ' : ''}clickable-row`}
-                            onClick={() => {
-                              setSelectedBooking(booking)
-                              setError('')
-                            }}
+                            className={`${isSelectedRow ? 'active-row ' : ''}${isOverdueRow ? 'overdue-row ' : ''}${isFollowUpRow ? 'followup-row ' : ''}${interactionLocked ? 'locked-row ' : ''}clickable-row`}
+                            onClick={() => openBookingDetails(booking)}
                           >
                             <td className="number-column">{(safeAdminPage - 1) * adminPageSize + index + 1}</td>
                             <td className="checkbox-column">
@@ -1842,9 +1855,9 @@ function App() {
                                 className="detail-link"
                                 onClick={(event) => {
                                   event.stopPropagation()
-                                  setSelectedBooking(booking)
-                                  setError('')
+                                  openBookingDetails(booking)
                                 }}
+                                disabled={interactionLocked && !isSelectedRow}
                               >
                                 {isUpdating ? '更新中...' : '查看'}
                               </button>
