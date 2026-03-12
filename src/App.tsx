@@ -1160,7 +1160,7 @@ function App() {
                               <div className="booking-table-stack">
                                 <strong>{booking.className}</strong>
                                 <span>{booking.trainer}</span>
-                                {booking.notes ? <span className="notes-preview">備註：{booking.notes}</span> : null}
+                                {booking.notes ? <span className="notes-preview" title={booking.notes}>備註：{booking.notes}</span> : null}
                               </div>
                             </td>
                             <td>
