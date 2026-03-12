@@ -560,6 +560,61 @@ a {
   background: rgba(255, 193, 77, 0.08);
 }
 
+.pipeline-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.pipeline-column {
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  display: grid;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.pipeline-column.active {
+  border-color: rgba(88, 194, 255, 0.3);
+  background: rgba(86, 160, 255, 0.08);
+}
+
+.pipeline-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pipeline-column-body {
+  display: grid;
+  gap: 8px;
+}
+
+.pipeline-mini-card {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(7, 17, 31, 0.5);
+  display: grid;
+  gap: 4px;
+}
+
+.pipeline-mini-card span,
+.pipeline-empty-text,
+.pipeline-more-text {
+  color: #bdcaea;
+}
+
+.pipeline-more-text {
+  font-size: 0.85rem;
+}
+
 .admin-toolbar {
   display: grid;
   grid-template-columns: minmax(220px, 1.2fr) repeat(6, minmax(140px, 1fr)) repeat(2, minmax(130px, 1fr)) repeat(5, minmax(120px, 1fr));
@@ -1017,6 +1072,50 @@ a {
   padding: 0 12px;
 }
 
+.activity-log-panel {
+  gap: 12px;
+}
+
+.activity-draft-row {
+  display: flex;
+  gap: 10px;
+}
+
+.activity-draft-row input {
+  flex: 1;
+}
+
+.activity-add-btn {
+  min-width: 120px;
+}
+
+.activity-log-list {
+  display: grid;
+  gap: 10px;
+}
+
+.activity-log-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(7, 17, 31, 0.46);
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.activity-log-item p {
+  margin: 0;
+  color: #dbe5ff;
+  line-height: 1.6;
+}
+
+.activity-empty-text {
+  margin: 0;
+  color: #8fa4d4;
+}
+
 .detail-dirty-hint {
   margin: 8px 0 0;
   color: #ffd98f;
@@ -1122,7 +1221,8 @@ a {
   .footer,
   .admin-stats-grid,
   .crm-stats-grid,
-  .filtered-stats-grid {
+  .filtered-stats-grid,
+  .pipeline-board {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -1177,7 +1277,8 @@ a {
     max-width: 100%;
   }
 
-  .chat-input-row {
+  .chat-input-row,
+  .activity-draft-row {
     flex-direction: column;
   }
 

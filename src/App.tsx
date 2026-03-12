@@ -112,6 +112,24 @@ function getSortIndicator(active: boolean) {
   return active ? ' ↓' : ''
 }
 
+function createActivityLogEntry(note: string) {
+  const trimmed = note.trim()
+  if (!trimmed) return ''
+
+  const timestamp = new Intl.DateTimeFormat('sv-SE', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+    .format(new Date())
+    .replace(' ', ' ')
+
+  return `${timestamp} ${trimmed}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -161,6 +179,7 @@ function App() {
     nextFollowUpAt: '',
     activityLog: [],
   })
+  const [activityDraft, setActivityDraft] = useState('')
   const [detailSaving, setDetailSaving] = useState(false)
   const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
@@ -234,6 +253,7 @@ function App() {
       nextFollowUpAt: selectedBooking.nextFollowUpAt,
       activityLog: selectedBooking.activityLog,
     })
+    setActivityDraft('')
   }, [selectedBooking])
 
   const stats = useMemo(
@@ -337,6 +357,15 @@ function App() {
     sorted.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     return adminSort === '最早更新' ? sorted : sorted.reverse()
   }, [adminAssignee, adminClass, adminEndDate, adminFollowUpOnly, adminOverdueOnly, adminQuery, adminSelectedOnly, adminSort, adminSource, adminStage, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
+
+  const pipelineColumns = useMemo(
+    () =>
+      stageOptions.map((stage) => ({
+        stage,
+        bookings: filteredBookings.filter((booking) => booking.stage === stage),
+      })),
+    [filteredBookings],
+  )
 
   useEffect(() => {
     setAdminPage(1)
@@ -808,6 +837,38 @@ function App() {
     setDetailForm((prev) => ({
       ...prev,
       notes: prev.notes.trim() ? `${prev.notes.trim()}\n${template}` : template,
+    }))
+  }
+
+  const appendActivityLogTemplate = (template: string) => {
+    const nextEntry = createActivityLogEntry(template)
+    if (!nextEntry) return
+
+    setDetailForm((prev) => ({
+      ...prev,
+      activityLog: [nextEntry, ...prev.activityLog],
+    }))
+  }
+
+  const addActivityLogEntry = () => {
+    const nextEntry = createActivityLogEntry(activityDraft)
+    if (!nextEntry) {
+      setError('請先輸入聯絡紀錄內容')
+      return
+    }
+
+    setDetailForm((prev) => ({
+      ...prev,
+      activityLog: [nextEntry, ...prev.activityLog],
+    }))
+    setActivityDraft('')
+    setError('')
+  }
+
+  const removeActivityLogEntry = (targetIndex: number) => {
+    setDetailForm((prev) => ({
+      ...prev,
+      activityLog: prev.activityLog.filter((_, index) => index !== targetIndex),
     }))
   }
 
@@ -1346,6 +1407,35 @@ function App() {
               <strong>{crmStats.followUpDue}</strong>
               <span>待追蹤</span>
             </button>
+          </div>
+
+          <div className="pipeline-board">
+            {pipelineColumns.map((column) => (
+              <button
+                key={column.stage}
+                className={`pipeline-column ${adminStage === column.stage ? 'active' : ''}`}
+                onClick={() => setAdminStage((prev) => (prev === column.stage ? '全部階段' : column.stage))}
+              >
+                <div className="pipeline-column-header">
+                  <span className={`crm-pill stage-${column.stage}`}>{column.stage}</span>
+                  <strong>{column.bookings.length}</strong>
+                </div>
+                <div className="pipeline-column-body">
+                  {column.bookings.length > 0 ? (
+                    column.bookings.slice(0, 3).map((booking) => (
+                      <div key={getBookingKey(booking)} className="pipeline-mini-card">
+                        <strong>{booking.name}</strong>
+                        <span>{booking.className}</span>
+                        <span>{booking.assignee}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="pipeline-empty-text">目前沒有名單</span>
+                  )}
+                  {column.bookings.length > 3 ? <span className="pipeline-more-text">+{column.bookings.length - 3} 筆</span> : null}
+                </div>
+              </button>
+            ))}
           </div>
 
           <div className="admin-toolbar admin-toolbar-crm">
@@ -1910,6 +2000,53 @@ function App() {
                     rows={4}
                   />
                 </label>
+                <div className="detail-field detail-field-wide activity-log-panel">
+                  <span>聯絡 / 跟進紀錄</span>
+                  <div className="note-template-row">
+                    <button className="secondary-btn note-template-btn" onClick={() => appendActivityLogTemplate('已電話聯繫，待回覆')}>
+                      電話聯繫
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendActivityLogTemplate('已加 LINE，待傳方案')}>
+                      已加 LINE
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendActivityLogTemplate('已傳報價，待確認體驗時間')}>
+                      已傳報價
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendActivityLogTemplate('客戶暫不考慮，列入回訪名單')}>
+                      列回訪
+                    </button>
+                  </div>
+                  <div className="activity-draft-row">
+                    <input
+                      value={activityDraft}
+                      onChange={(event) => setActivityDraft(event.target.value)}
+                      placeholder="新增一筆聯絡紀錄，例如：2026 春季活動方案已傳送"
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') {
+                          event.preventDefault()
+                          addActivityLogEntry()
+                        }
+                      }}
+                    />
+                    <button className="secondary-btn activity-add-btn" onClick={addActivityLogEntry}>
+                      新增紀錄
+                    </button>
+                  </div>
+                  {detailForm.activityLog.length > 0 ? (
+                    <div className="activity-log-list">
+                      {detailForm.activityLog.map((entry, index) => (
+                        <div key={`${entry}-${index}`} className="activity-log-item">
+                          <p>{entry}</p>
+                          <button className="mini-copy-btn" onClick={() => removeActivityLogEntry(index)}>
+                            刪除
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="activity-empty-text">還沒有聯絡紀錄，可以先用上面的快捷按鈕補第一筆。</p>
+                  )}
+                </div>
               </div>
 
               <div className="detail-actions">
@@ -1922,7 +2059,7 @@ function App() {
                 </button>
                 <button
                   className="secondary-btn detail-action-btn"
-                  onClick={() =>
+                  onClick={() => {
                     setDetailForm({
                       name: selectedBooking.name,
                       className: selectedBooking.className,
@@ -1935,7 +2072,8 @@ function App() {
                       nextFollowUpAt: selectedBooking.nextFollowUpAt,
                       activityLog: selectedBooking.activityLog,
                     })
-                  }
+                    setActivityDraft('')
+                  }}
                   disabled={detailSaving || detailDeleting || !hasUnsavedDetailChanges}
                 >
                   重設
