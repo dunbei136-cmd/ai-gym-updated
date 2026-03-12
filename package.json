@@ -12,6 +12,7 @@
     "qa:live": "node scripts/live-check.mjs",
     "qa:lead": "node scripts/lead-flow-check.mjs",
     "qa:mobile": "node scripts/mobile-check.mjs",
+    "qa:admin": "node scripts/admin-check.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
