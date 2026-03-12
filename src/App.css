@@ -629,6 +629,27 @@ a {
   color: #bdcaea;
 }
 
+.booking-table-meta-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-size-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-size-label select {
+  min-height: 38px;
+  padding: 0 12px;
+  color: #eef3ff;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .booking-table-wrap {
   overflow-x: auto;
   border-radius: 18px;
@@ -649,6 +670,12 @@ a {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.number-column {
+  width: 64px;
+  text-align: center;
+  color: #8fa4d4;
+}
+
 .checkbox-column {
   width: 64px;
   text-align: center;
@@ -663,6 +690,10 @@ a {
 
 .booking-table tbody tr:hover {
   background: rgba(255, 255, 255, 0.03);
+}
+
+.booking-table tbody tr.active-row {
+  background: rgba(86, 160, 255, 0.08);
 }
 
 .booking-table tbody tr:last-child td {

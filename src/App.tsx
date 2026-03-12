@@ -92,6 +92,7 @@ function App() {
   const [adminStartDate, setAdminStartDate] = useState('')
   const [adminEndDate, setAdminEndDate] = useState('')
   const [adminPage, setAdminPage] = useState(1)
+  const [adminPageSize, setAdminPageSize] = useState<5 | 10 | 20>(5)
   const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
   const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
 
@@ -192,16 +193,19 @@ function App() {
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminEndDate, adminQuery, adminSort, adminStartDate, adminStatus])
+  }, [adminEndDate, adminPageSize, adminQuery, adminSort, adminStartDate, adminStatus])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
     setSelectedBookingKeys((prev) => prev.filter((key) => validKeys.has(key)))
   }, [bookings])
 
-  const totalAdminPages = Math.max(1, Math.ceil(filteredBookings.length / 5))
+  const totalAdminPages = Math.max(1, Math.ceil(filteredBookings.length / adminPageSize))
   const safeAdminPage = Math.min(adminPage, totalAdminPages)
-  const paginatedBookings = filteredBookings.slice((safeAdminPage - 1) * 5, safeAdminPage * 5)
+  const paginatedBookings = filteredBookings.slice(
+    (safeAdminPage - 1) * adminPageSize,
+    safeAdminPage * adminPageSize,
+  )
   const paginatedBookingKeys = paginatedBookings.map((booking) => getBookingKey(booking))
   const selectedOnPageCount = paginatedBookingKeys.filter((key) => selectedBookingKeys.includes(key)).length
   const allOnPageSelected = paginatedBookingKeys.length > 0 && selectedOnPageCount === paginatedBookingKeys.length
@@ -1011,16 +1015,27 @@ function App() {
             ) : filteredBookings.length > 0 ? (
               <>
                 <div className="booking-table-meta">
-                  <span>
-                    第 {safeAdminPage} / {totalAdminPages} 頁
-                  </span>
-                  <span>共 {filteredBookings.length} 筆</span>
+                  <div className="booking-table-meta-group">
+                    <span>
+                      第 {safeAdminPage} / {totalAdminPages} 頁
+                    </span>
+                    <span>共 {filteredBookings.length} 筆</span>
+                  </div>
+                  <label className="page-size-label">
+                    <span>每頁筆數</span>
+                    <select value={adminPageSize} onChange={(event) => setAdminPageSize(Number(event.target.value) as 5 | 10 | 20)}>
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                    </select>
+                  </label>
                 </div>
 
                 <div className="booking-table-wrap">
                   <table className="booking-table">
                     <thead>
                       <tr>
+                        <th className="number-column">#</th>
                         <th className="checkbox-column">選取</th>
                         <th>姓名</th>
                         <th>課程 / 教練</th>
@@ -1031,12 +1046,14 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedBookings.map((booking) => {
+                      {paginatedBookings.map((booking, index) => {
                         const bookingKey = `${booking.phone}-${booking.email}`
                         const isUpdating = updatingKey === bookingKey
+                        const isSelectedRow = selectedBooking?.phone === booking.phone && selectedBooking?.email === booking.email
 
                         return (
-                          <tr key={bookingKey}>
+                          <tr key={bookingKey} className={isSelectedRow ? 'active-row' : ''}>
+                            <td className="number-column">{(safeAdminPage - 1) * adminPageSize + index + 1}</td>
                             <td className="checkbox-column">
                               <input
                                 type="checkbox"
