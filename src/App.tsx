@@ -51,6 +51,13 @@ function App() {
     preferredSlot: '平日晚上',
   })
   const [leadSubmitted, setLeadSubmitted] = useState<BookingRecord | null>(null)
+  const [adminForm, setAdminForm] = useState<LeadForm>({
+    name: '',
+    phone: '',
+    email: '',
+    goal: '減脂 / 新手入門',
+    preferredSlot: '平日晚上',
+  })
   const [bookings, setBookings] = useState<BookingRecord[]>([])
   const [lookupResult, setLookupResult] = useState<BookingRecord | null>(null)
   const [lookupTouched, setLookupTouched] = useState(false)
@@ -179,6 +186,10 @@ function App() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  const updateAdminForm = <K extends keyof LeadForm>(key: K, value: LeadForm[K]) => {
+    setAdminForm((prev) => ({ ...prev, [key]: value }))
+  }
+
   const submitLead = async () => {
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('請至少填寫姓名、手機與 Email')
@@ -205,6 +216,36 @@ function App() {
       ])
     } catch {
       setError('建立預約失敗，請稍後再試')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitAdminBooking = async () => {
+    if (!adminForm.name.trim() || !adminForm.phone.trim() || !adminForm.email.trim()) {
+      setError('Admin 新增 booking 時，姓名、手機與 Email 都要填寫')
+      return
+    }
+
+    setBusy(true)
+    setError('')
+
+    try {
+      const booking = await api.createBooking(adminForm)
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+      setSelectedBooking(booking)
+      setAdminStatus('全部')
+      setAdminQuery('')
+      setAdminForm({
+        name: '',
+        phone: '',
+        email: '',
+        goal: '減脂 / 新手入門',
+        preferredSlot: '平日晚上',
+      })
+    } catch {
+      setError('Admin 建立 booking 失敗，請稍後再試')
     } finally {
       setBusy(false)
     }
@@ -637,6 +678,51 @@ function App() {
               <h2>預約後台頁</h2>
             </div>
             <p className="section-note">直接讀 API booking 清單，帶搜尋、篩選與狀態總覽。</p>
+          </div>
+
+          <div className="admin-create-panel">
+            <div className="section-heading compact">
+              <div>
+                <p className="section-kicker">Quick Create</p>
+                <h3>後台直接新增 booking</h3>
+              </div>
+              <p className="section-note">用 admin 角度快速建立資料，建立後會自動選中這筆 booking。</p>
+            </div>
+
+            <div className="admin-create-grid">
+              <label>
+                姓名
+                <input value={adminForm.name} onChange={(event) => updateAdminForm('name', event.target.value)} placeholder="例如：王小明" />
+              </label>
+              <label>
+                手機號碼
+                <input value={adminForm.phone} onChange={(event) => updateAdminForm('phone', event.target.value)} placeholder="例如：0912345678" />
+              </label>
+              <label>
+                Email
+                <input value={adminForm.email} onChange={(event) => updateAdminForm('email', event.target.value)} placeholder="例如：ming@example.com" />
+              </label>
+              <label>
+                目標
+                <select value={adminForm.goal} onChange={(event) => updateAdminForm('goal', event.target.value)}>
+                  <option>減脂 / 新手入門</option>
+                  <option>增肌 / 重訓規劃</option>
+                  <option>姿勢矯正 / 體態改善</option>
+                  <option>團體課 / 體驗參觀</option>
+                </select>
+              </label>
+              <label>
+                偏好時段
+                <select value={adminForm.preferredSlot} onChange={(event) => updateAdminForm('preferredSlot', event.target.value)}>
+                  <option>平日晚上</option>
+                  <option>平日白天</option>
+                  <option>週末上午</option>
+                </select>
+              </label>
+              <button className="submit-btn admin-create-btn" onClick={() => void submitAdminBooking()} disabled={busy}>
+                {busy ? '建立中...' : '新增 booking'}
+              </button>
+            </div>
           </div>
 
           <div className="admin-stats-grid">
