@@ -69,6 +69,13 @@ function isOverdueBooking(booking: BookingRecord) {
   return bookingTime.getTime() < Date.now()
 }
 
+function toLocalDateInputValue(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -420,6 +427,24 @@ function App() {
     setAdminOverdueOnly(false)
     setAdminSelectedOnly(false)
     setAdminPage(1)
+  }
+
+  const applyTodayFilter = () => {
+    const today = toLocalDateInputValue(new Date())
+    setAdminStartDate(today)
+    setAdminEndDate(today)
+  }
+
+  const applyThisWeekFilter = () => {
+    const now = new Date()
+    const start = new Date(now)
+    const end = new Date(now)
+    const day = now.getDay()
+    const diffToMonday = day === 0 ? -6 : 1 - day
+    start.setDate(now.getDate() + diffToMonday)
+    end.setDate(start.getDate() + 6)
+    setAdminStartDate(toLocalDateInputValue(start))
+    setAdminEndDate(toLocalDateInputValue(end))
   }
 
   const copyToClipboard = async (label: string, value: string) => {
@@ -1125,6 +1150,18 @@ function App() {
             </button>
             <button className="secondary-btn admin-clear-btn" onClick={resetAdminFilters} disabled={activeFilterLabels.length === 0}>
               清除篩選
+            </button>
+          </div>
+
+          <div className="quick-filter-row">
+            <button className="secondary-btn quick-filter-btn" onClick={applyTodayFilter}>
+              今天
+            </button>
+            <button className="secondary-btn quick-filter-btn" onClick={applyThisWeekFilter}>
+              本週
+            </button>
+            <button className="secondary-btn quick-filter-btn" onClick={resetAdminFilters}>
+              全部時間
             </button>
           </div>
 
