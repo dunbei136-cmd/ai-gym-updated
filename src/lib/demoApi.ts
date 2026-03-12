@@ -9,7 +9,12 @@ function readStoredBookings() {
     if (!raw) return []
     const parsed = JSON.parse(raw)
     return Array.isArray(parsed)
-      ? parsed.map((item) => ({ ...item, notes: typeof item.notes === 'string' ? item.notes : '' }))
+      ? parsed.map((item) => ({
+          ...item,
+          notes: typeof item.notes === 'string' ? item.notes : '',
+          createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date().toISOString(),
+          updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : new Date().toISOString(),
+        }))
       : []
   } catch {
     return []
@@ -101,6 +106,7 @@ export const demoApi: GymApi = {
   async createBooking(payload: LeadForm) {
     const program = resolveProgram(payload.goal)
 
+    const now = new Date().toISOString()
     const booking: BookingRecord = {
       name: payload.name.trim(),
       phone: payload.phone.trim(),
@@ -110,6 +116,8 @@ export const demoApi: GymApi = {
       date: resolveSlot(payload.preferredSlot),
       status: '待回覆',
       notes: '',
+      createdAt: now,
+      updatedAt: now,
     }
 
     const next = [
@@ -152,8 +160,9 @@ export const demoApi: GymApi = {
         (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
       )
 
+    const now = new Date().toISOString()
     const updated: BookingRecord = existing
-      ? { ...existing, status }
+      ? { ...existing, status, updatedAt: now }
       : {
           name: '',
           phone: normalizedPhone,
@@ -163,6 +172,8 @@ export const demoApi: GymApi = {
           date: '',
           status,
           notes: '',
+          createdAt: now,
+          updatedAt: now,
         }
 
     const next = [
@@ -192,8 +203,9 @@ export const demoApi: GymApi = {
         (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
       )
 
+    const now = new Date().toISOString()
     const updated: BookingRecord = existing
-      ? { ...existing, ...patch }
+      ? { ...existing, ...patch, updatedAt: now }
       : {
           name: '',
           phone: normalizedPhone,
@@ -203,6 +215,8 @@ export const demoApi: GymApi = {
           date: patch.date,
           status: '待回覆',
           notes: patch.notes ?? '',
+          createdAt: now,
+          updatedAt: now,
         }
 
     const next = [

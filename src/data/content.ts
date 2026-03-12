@@ -34,6 +34,8 @@ export const seedBookingRecords: BookingRecord[] = [
     date: '2026/03/18 19:00',
     status: '已確認',
     notes: '已完成初步體驗課確認，可追蹤轉正式會員。',
+    createdAt: '2026-03-10T11:00:00.000Z',
+    updatedAt: '2026-03-12T12:30:00.000Z',
   },
   {
     name: '陳志豪',
@@ -44,6 +46,8 @@ export const seedBookingRecords: BookingRecord[] = [
     date: '2026/03/19 14:30',
     status: '待回覆',
     notes: '偏好下午時段，對重訓課表很有興趣。',
+    createdAt: '2026-03-11T09:30:00.000Z',
+    updatedAt: '2026-03-12T15:10:00.000Z',
   },
   {
     name: '林佩琪',
@@ -54,6 +58,8 @@ export const seedBookingRecords: BookingRecord[] = [
     date: '2026/03/12 20:00',
     status: '已完成',
     notes: '已完成體驗，可作為回訪名單。',
+    createdAt: '2026-03-09T07:45:00.000Z',
+    updatedAt: '2026-03-12T13:00:00.000Z',
   },
 ]
 

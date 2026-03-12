@@ -12,6 +12,8 @@ export type BookingRecord = {
   date: string
   status: '已確認' | '待回覆' | '已完成'
   notes: string
+  createdAt: string
+  updatedAt: string
 }
 
 export type BookingDetailPatch = Pick<BookingRecord, 'name' | 'className' | 'trainer' | 'date' | 'notes'>

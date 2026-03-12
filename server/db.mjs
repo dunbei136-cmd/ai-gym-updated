@@ -81,6 +81,8 @@ function normalizeRow(row) {
     date: row.date,
     status: row.status,
     notes: row.notes ?? '',
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
   }
 }
 
@@ -103,8 +105,8 @@ function seedIfEmpty() {
   }
 
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO bookings (name, phone, email, className, trainer, date, status, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO bookings (name, phone, email, className, trainer, date, status, notes, createdAt, updatedAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
   `)
 
   db.exec('BEGIN')
@@ -132,7 +134,7 @@ seedIfEmpty()
 
 export function listBookings() {
   const rows = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status, notes
+    SELECT name, phone, email, className, trainer, date, status, notes, createdAt, updatedAt
     FROM bookings
     ORDER BY datetime(createdAt) DESC, id DESC
   `).all()
@@ -142,7 +144,7 @@ export function listBookings() {
 
 export function lookupBooking(phone, email) {
   const row = db.prepare(`
-    SELECT name, phone, email, className, trainer, date, status, notes
+    SELECT name, phone, email, className, trainer, date, status, notes, createdAt, updatedAt
     FROM bookings
     WHERE phone = ? AND lower(email) = lower(?)
     LIMIT 1

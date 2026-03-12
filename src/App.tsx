@@ -42,6 +42,20 @@ function getBookingDateOnly(value: string) {
   return `${year}-${month}-${day}`
 }
 
+function formatAuditTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return new Intl.DateTimeFormat('zh-TW', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -398,7 +412,7 @@ function App() {
 
   const downloadBookingsCsv = (targetBookings: BookingRecord[], filePrefix: string) => {
     const rows = [
-      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態', '備註'],
+      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態', '備註', '建立時間', '更新時間'],
       ...targetBookings.map((booking) => [
         booking.name,
         booking.phone,
@@ -408,6 +422,8 @@ function App() {
         booking.date,
         booking.status,
         booking.notes,
+        booking.createdAt,
+        booking.updatedAt,
       ]),
     ]
 
@@ -1374,6 +1390,14 @@ function App() {
                   <button className="mini-copy-btn" onClick={() => void copyToClipboard('Email', selectedBooking.email)}>
                     複製 Email
                   </button>
+                </div>
+                <div>
+                  <span>建立時間</span>
+                  <strong>{formatAuditTime(selectedBooking.createdAt)}</strong>
+                </div>
+                <div>
+                  <span>最後更新</span>
+                  <strong>{formatAuditTime(selectedBooking.updatedAt)}</strong>
                 </div>
                 <label className="detail-field">
                   <span>姓名</span>
