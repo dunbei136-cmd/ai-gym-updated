@@ -868,6 +868,12 @@ a {
   font-size: 0.8rem;
 }
 
+.detail-dirty-hint {
+  margin: 8px 0 0;
+  color: #ffd98f;
+  font-size: 0.9rem;
+}
+
 .detail-actions {
   margin-top: 16px;
   display: flex;

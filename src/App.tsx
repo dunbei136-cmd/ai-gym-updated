@@ -240,6 +240,13 @@ function App() {
     selectedBookingIndex >= 0 && selectedBookingIndex < filteredBookings.length - 1
       ? filteredBookings[selectedBookingIndex + 1]
       : null
+  const hasUnsavedDetailChanges =
+    !!selectedBooking &&
+    (detailForm.name !== selectedBooking.name ||
+      detailForm.className !== selectedBooking.className ||
+      detailForm.trainer !== selectedBooking.trainer ||
+      detailForm.date !== selectedBooking.date ||
+      detailForm.notes !== selectedBooking.notes)
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -527,6 +534,11 @@ function App() {
     value: BookingDetailPatch[K],
   ) => {
     setDetailForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const confirmLeaveDirtyDetail = () => {
+    if (!hasUnsavedDetailChanges) return true
+    return window.confirm('目前有未儲存的變更，確定要離開這筆 booking 嗎？')
   }
 
   const saveBookingDetails = async () => {
@@ -1248,18 +1260,25 @@ function App() {
                 <div>
                   <p className="section-kicker">Booking Detail</p>
                   <h3>{detailForm.name || selectedBooking.name}</h3>
+                  {hasUnsavedDetailChanges ? <p className="detail-dirty-hint">有未儲存變更</p> : null}
                 </div>
                 <div className="detail-header-actions">
                   <button
                     className="detail-close"
-                    onClick={() => previousBooking && setSelectedBooking(previousBooking)}
+                    onClick={() => {
+                      if (!previousBooking || !confirmLeaveDirtyDetail()) return
+                      setSelectedBooking(previousBooking)
+                    }}
                     disabled={!previousBooking || detailSaving || detailDeleting}
                   >
                     上一筆
                   </button>
                   <button
                     className="detail-close"
-                    onClick={() => nextBooking && setSelectedBooking(nextBooking)}
+                    onClick={() => {
+                      if (!nextBooking || !confirmLeaveDirtyDetail()) return
+                      setSelectedBooking(nextBooking)
+                    }}
                     disabled={!nextBooking || detailSaving || detailDeleting}
                   >
                     下一筆
@@ -1267,6 +1286,7 @@ function App() {
                   <button
                     className="detail-close"
                     onClick={() => {
+                      if (!confirmLeaveDirtyDetail()) return
                       setSelectedBooking(null)
                       setError('')
                     }}
@@ -1373,14 +1393,14 @@ function App() {
                       notes: selectedBooking.notes,
                     })
                   }
-                  disabled={detailSaving || detailDeleting}
+                  disabled={detailSaving || detailDeleting || !hasUnsavedDetailChanges}
                 >
                   重設
                 </button>
                 <button
                   className="submit-btn detail-action-btn"
                   onClick={() => void saveBookingDetails()}
-                  disabled={detailSaving || detailDeleting}
+                  disabled={detailSaving || detailDeleting || !hasUnsavedDetailChanges}
                 >
                   {detailSaving ? '儲存中...' : '儲存明細'}
                 </button>
