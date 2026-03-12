@@ -105,7 +105,7 @@ function App() {
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
   const [adminTrainer, setAdminTrainer] = useState('全部教練')
   const [adminClass, setAdminClass] = useState('全部課程')
-  const [adminSort, setAdminSort] = useState<'最新優先' | '最舊優先' | '姓名 A-Z'>('最新優先')
+  const [adminSort, setAdminSort] = useState<'最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z'>('最近更新')
   const [adminStartDate, setAdminStartDate] = useState('')
   const [adminEndDate, setAdminEndDate] = useState('')
   const [adminPage, setAdminPage] = useState(1)
@@ -213,8 +213,13 @@ function App() {
       return sorted
     }
 
-    sorted.sort((a, b) => a.date.localeCompare(b.date))
-    return adminSort === '最舊優先' ? sorted : sorted.reverse()
+    if (adminSort === '預約時間新→舊') {
+      sorted.sort((a, b) => b.date.localeCompare(a.date))
+      return sorted
+    }
+
+    sorted.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
+    return adminSort === '最早更新' ? sorted : sorted.reverse()
   }, [adminClass, adminEndDate, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
 
   useEffect(() => {
@@ -240,7 +245,7 @@ function App() {
     adminStatus !== '全部' ? `狀態：${adminStatus}` : '',
     adminTrainer !== '全部教練' ? `教練：${adminTrainer}` : '',
     adminClass !== '全部課程' ? `課程：${adminClass}` : '',
-    adminSort !== '最新優先' ? `排序：${adminSort}` : '',
+    adminSort !== '最近更新' ? `排序：${adminSort}` : '',
     adminStartDate ? `開始：${adminStartDate}` : '',
     adminEndDate ? `結束：${adminEndDate}` : '',
     adminSelectedOnly ? '只看已勾選' : '',
@@ -393,7 +398,7 @@ function App() {
     setAdminStatus('全部')
     setAdminTrainer('全部教練')
     setAdminClass('全部課程')
-    setAdminSort('最新優先')
+    setAdminSort('最近更新')
     setAdminStartDate('')
     setAdminEndDate('')
     setAdminSelectedOnly(false)
@@ -1084,9 +1089,10 @@ function App() {
                 <option key={className}>{className}</option>
               ))}
             </select>
-            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最新優先' | '最舊優先' | '姓名 A-Z')}>
-              <option>最新優先</option>
-              <option>最舊優先</option>
+            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z')}>
+              <option>最近更新</option>
+              <option>最早更新</option>
+              <option>預約時間新→舊</option>
               <option>姓名 A-Z</option>
             </select>
             <input type="date" value={adminStartDate} onChange={(event) => setAdminStartDate(event.target.value)} />
@@ -1197,6 +1203,7 @@ function App() {
                         <th>課程 / 教練</th>
                         <th>聯絡方式</th>
                         <th>時間</th>
+                        <th>最後更新</th>
                         <th>狀態</th>
                         <th>操作</th>
                       </tr>
@@ -1252,6 +1259,7 @@ function App() {
                               </div>
                             </td>
                             <td>{formatBookingDateLabel(booking.date)}</td>
+                            <td>{formatAuditTime(booking.updatedAt)}</td>
                             <td>
                               <div className="booking-table-stack">
                                 <span className={`status-pill status-${booking.status}`}>{booking.status}</span>
