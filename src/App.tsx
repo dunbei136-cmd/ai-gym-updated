@@ -205,6 +205,13 @@ function App() {
   const paginatedBookingKeys = paginatedBookings.map((booking) => getBookingKey(booking))
   const selectedOnPageCount = paginatedBookingKeys.filter((key) => selectedBookingKeys.includes(key)).length
   const allOnPageSelected = paginatedBookingKeys.length > 0 && selectedOnPageCount === paginatedBookingKeys.length
+  const activeFilterLabels = [
+    adminQuery ? `關鍵字：${adminQuery}` : '',
+    adminStatus !== '全部' ? `狀態：${adminStatus}` : '',
+    adminSort !== '最新優先' ? `排序：${adminSort}` : '',
+    adminStartDate ? `開始：${adminStartDate}` : '',
+    adminEndDate ? `結束：${adminEndDate}` : '',
+  ].filter(Boolean)
 
   const selectedBookingIndex = selectedBooking
     ? filteredBookings.findIndex(
@@ -324,6 +331,15 @@ function App() {
 
       return [...new Set([...prev, ...paginatedBookingKeys])]
     })
+  }
+
+  const resetAdminFilters = () => {
+    setAdminQuery('')
+    setAdminStatus('全部')
+    setAdminSort('最新優先')
+    setAdminStartDate('')
+    setAdminEndDate('')
+    setAdminPage(1)
   }
 
   const exportBookingsCsv = () => {
@@ -905,7 +921,20 @@ function App() {
             <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
               匯出 CSV
             </button>
+            <button className="secondary-btn admin-clear-btn" onClick={resetAdminFilters} disabled={activeFilterLabels.length === 0}>
+              清除篩選
+            </button>
           </div>
+
+          {activeFilterLabels.length > 0 ? (
+            <div className="active-filters">
+              {activeFilterLabels.map((label) => (
+                <span key={label} className="filter-chip">
+                  {label}
+                </span>
+              ))}
+            </div>
+          ) : null}
 
           <div className="batch-toolbar">
             <label className="batch-select-label">
