@@ -18,12 +18,24 @@ const maxCacheEntries = Number(process.env.AI_CACHE_MAX || 200)
 export function buildFallbackReply(message = '') {
   const normalized = message.trim().toLowerCase()
 
+  if (normalized.includes('價格') || normalized.includes('費用') || normalized.includes('多少錢')) {
+    return '目前可先看三種主路徑：體驗課、月會籍、私人教練方案；若是第一次接觸，建議先從體驗課開始，再決定是否升級。'
+  }
+
   if (normalized.includes('會員')) {
     return '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；若你還沒上過，建議先從體驗課開始。'
   }
 
   if (normalized.includes('新手') || normalized.includes('推薦') || normalized.includes('課')) {
     return '如果你是新手，我會優先推薦「新手燃脂體驗課」或「體態評估 + 教練諮詢」，先確認目標再安排適合的教練。'
+  }
+
+  if (normalized.includes('教練')) {
+    return '目前可依目標安排不同教練，例如燃脂、新手入門、增肌重訓、體態矯正；若你告訴我目標，我可以先幫你分流。'
+  }
+
+  if (normalized.includes('時間') || normalized.includes('營業')) {
+    return '你可以先告訴我想要的時段，例如平日白天、平日晚上、週末上午；目前 demo 會依時段自動安排可預約時間。'
   }
 
   if (normalized.includes('查詢') || normalized.includes('預約') || normalized.includes('booking')) {
@@ -34,14 +46,29 @@ export function buildFallbackReply(message = '') {
 }
 
 function normalizeMessage(message = '') {
-  return message.trim().replace(/\s+/g, ' ').toLowerCase()
+  return message.trim().replace(/\s+/g, ' ').slice(0, 500).toLowerCase()
 }
 
 function shouldUseFallbackOnly(message = '') {
   const normalized = normalizeMessage(message)
   if (!normalized) return true
 
-  const simpleFaqPatterns = [/會員/, /新手/, /推薦/, /課/, /查詢/, /預約/, /booking/]
+  const simpleFaqPatterns = [
+    /會員/,
+    /新手/,
+    /推薦/,
+    /課/,
+    /查詢/,
+    /預約/,
+    /booking/,
+    /價格/,
+    /費用/,
+    /多少錢/,
+    /教練/,
+    /營業/,
+    /時間/,
+  ]
+
   if (normalized.length <= 6) return true
   if (simpleFaqPatterns.some((pattern) => pattern.test(normalized))) return true
 
