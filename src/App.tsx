@@ -75,6 +75,7 @@ function App() {
   const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
+  const [adminPage, setAdminPage] = useState(1)
 
   useEffect(() => {
     void api.listBookings().then(setBookings).catch(() => setError('載入 booking 資料失敗'))
@@ -151,6 +152,14 @@ function App() {
       return matchStatus && matchKeyword
     })
   }, [adminQuery, adminStatus, bookings])
+
+  useEffect(() => {
+    setAdminPage(1)
+  }, [adminQuery, adminStatus])
+
+  const totalAdminPages = Math.max(1, Math.ceil(filteredBookings.length / 5))
+  const safeAdminPage = Math.min(adminPage, totalAdminPages)
+  const paginatedBookings = filteredBookings.slice((safeAdminPage - 1) * 5, safeAdminPage * 5)
 
   const selectedBookingIndex = selectedBooking
     ? filteredBookings.findIndex(
@@ -758,52 +767,106 @@ function App() {
             </select>
           </div>
 
-          <div className="booking-list">
-            {filteredBookings.map((booking) => {
-              const bookingKey = `${booking.phone}-${booking.email}`
-              const isUpdating = updatingKey === bookingKey
+          <div className="booking-table-shell">
+            {filteredBookings.length > 0 ? (
+              <>
+                <div className="booking-table-meta">
+                  <span>
+                    第 {safeAdminPage} / {totalAdminPages} 頁
+                  </span>
+                  <span>共 {filteredBookings.length} 筆</span>
+                </div>
 
-              return (
-                <article key={bookingKey} className="booking-list-item">
-                  <div>
-                    <strong>{booking.name}</strong>
-                    <p>
-                      {booking.className} · {booking.trainer}
-                    </p>
-                    <button
-                      className="detail-link"
-                      onClick={() => {
-                        setSelectedBooking(booking)
-                        setError('')
-                      }}
-                    >
-                      查看明細
-                    </button>
-                  </div>
-                  <div className="booking-list-actions">
-                    <span className="status-pill">{booking.status}</span>
-                    <select
-                      value={booking.status}
-                      disabled={isUpdating}
-                      onChange={(event) =>
-                        void changeBookingStatus(
-                          booking.phone,
-                          booking.email,
-                          event.target.value as BookingRecord['status'],
+                <div className="booking-table-wrap">
+                  <table className="booking-table">
+                    <thead>
+                      <tr>
+                        <th>姓名</th>
+                        <th>課程 / 教練</th>
+                        <th>聯絡方式</th>
+                        <th>時間</th>
+                        <th>狀態</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedBookings.map((booking) => {
+                        const bookingKey = `${booking.phone}-${booking.email}`
+                        const isUpdating = updatingKey === bookingKey
+
+                        return (
+                          <tr key={bookingKey}>
+                            <td>
+                              <strong>{booking.name}</strong>
+                            </td>
+                            <td>
+                              <div className="booking-table-stack">
+                                <strong>{booking.className}</strong>
+                                <span>{booking.trainer}</span>
+                              </div>
+                            </td>
+                            <td>
+                              <div className="booking-table-stack">
+                                <span>{booking.phone}</span>
+                                <span>{booking.email}</span>
+                              </div>
+                            </td>
+                            <td>{formatBookingDateLabel(booking.date)}</td>
+                            <td>
+                              <select
+                                value={booking.status}
+                                disabled={isUpdating}
+                                onChange={(event) =>
+                                  void changeBookingStatus(
+                                    booking.phone,
+                                    booking.email,
+                                    event.target.value as BookingRecord['status'],
+                                  )
+                                }
+                              >
+                                <option>待回覆</option>
+                                <option>已確認</option>
+                                <option>已完成</option>
+                              </select>
+                            </td>
+                            <td>
+                              <button
+                                className="detail-link"
+                                onClick={() => {
+                                  setSelectedBooking(booking)
+                                  setError('')
+                                }}
+                              >
+                                {isUpdating ? '更新中...' : '查看'}
+                              </button>
+                            </td>
+                          </tr>
                         )
-                      }
-                    >
-                      <option>待回覆</option>
-                      <option>已確認</option>
-                      <option>已完成</option>
-                    </select>
-                    <p>{isUpdating ? '更新中...' : `${booking.phone} / ${booking.email}`}</p>
-                    <p>{formatBookingDateLabel(booking.date)}</p>
-                  </div>
-                </article>
-              )
-            })}
-            {filteredBookings.length === 0 ? <p className="empty-admin-state">目前沒有符合條件的預約。</p> : null}
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="pagination-bar">
+                  <button
+                    className="secondary-btn pagination-btn"
+                    onClick={() => setAdminPage((prev) => Math.max(1, prev - 1))}
+                    disabled={safeAdminPage === 1}
+                  >
+                    上一頁
+                  </button>
+                  <button
+                    className="secondary-btn pagination-btn"
+                    onClick={() => setAdminPage((prev) => Math.min(totalAdminPages, prev + 1))}
+                    disabled={safeAdminPage === totalAdminPages}
+                  >
+                    下一頁
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="empty-admin-state">目前沒有符合條件的預約。</p>
+            )}
           </div>
 
           {selectedBooking ? (
