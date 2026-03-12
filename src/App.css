@@ -572,11 +572,9 @@ a {
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: rgba(255, 255, 255, 0.03);
   color: inherit;
-  font: inherit;
   text-align: left;
   display: grid;
   gap: 12px;
-  cursor: pointer;
 }
 
 .pipeline-column.active {
@@ -584,11 +582,23 @@ a {
   background: rgba(86, 160, 255, 0.08);
 }
 
-.pipeline-column-header {
+.pipeline-column.drag-target {
+  border-color: rgba(65, 227, 214, 0.42);
+  background: rgba(65, 227, 214, 0.1);
+}
+
+.pipeline-column-header-btn {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  cursor: pointer;
 }
 
 .pipeline-column-body {
@@ -597,12 +607,21 @@ a {
 }
 
 .pipeline-mini-card {
+  width: 100%;
   padding: 12px;
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.06);
   background: rgba(7, 17, 31, 0.5);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   display: grid;
   gap: 4px;
+  cursor: grab;
+}
+
+.pipeline-mini-card.dragging {
+  opacity: 0.5;
 }
 
 .pipeline-mini-card span,
@@ -1049,13 +1068,15 @@ a {
   font-size: 0.8rem;
 }
 
-.quick-status-actions {
+.quick-status-actions,
+.quick-stage-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.quick-status-btn {
+.quick-status-btn,
+.quick-stage-btn {
   min-height: 36px;
   padding: 0 12px;
 }

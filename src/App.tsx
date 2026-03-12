@@ -201,6 +201,8 @@ function App() {
   const [batchStatus, setBatchStatus] = useState<BookingStatus>('待回覆')
   const [batchStage, setBatchStage] = useState<'不變' | LeadStage>('不變')
   const [batchAssignee, setBatchAssignee] = useState('')
+  const [dragBookingKey, setDragBookingKey] = useState('')
+  const [dragStageTarget, setDragStageTarget] = useState<LeadStage | ''>('')
 
   useEffect(() => {
     setLoadingBookings(true)
@@ -787,6 +789,50 @@ function App() {
       setError('批次更新 CRM 欄位失敗，請稍後再試')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const moveBookingToStage = async (booking: BookingRecord, stage: LeadStage) => {
+    if (booking.stage === stage) {
+      setDragBookingKey('')
+      setDragStageTarget('')
+      return
+    }
+
+    setBusy(true)
+    setError('')
+    setNotice('')
+    setDragBookingKey(getBookingKey(booking))
+    setDragStageTarget(stage)
+
+    try {
+      const updated = await api.updateBookingDetails(booking.phone, booking.email, {
+        name: booking.name,
+        className: booking.className,
+        trainer: booking.trainer,
+        date: booking.date,
+        notes: booking.notes,
+        stage,
+        source: booking.source,
+        assignee: booking.assignee,
+        nextFollowUpAt: booking.nextFollowUpAt,
+        activityLog: booking.activityLog,
+      })
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+      if (selectedBooking && getBookingKey(selectedBooking) === getBookingKey(booking)) {
+        setSelectedBooking(updated)
+      }
+      if (lookupResult && getBookingKey(lookupResult) === getBookingKey(booking)) {
+        setLookupResult(updated)
+      }
+      setNotice(`已將 ${booking.name} 移到「${stage}」`)
+    } catch {
+      setError('更新 pipeline 階段失敗，請稍後再試')
+    } finally {
+      setBusy(false)
+      setDragBookingKey('')
+      setDragStageTarget('')
     }
   }
 
@@ -1411,30 +1457,69 @@ function App() {
 
           <div className="pipeline-board">
             {pipelineColumns.map((column) => (
-              <button
+              <div
                 key={column.stage}
-                className={`pipeline-column ${adminStage === column.stage ? 'active' : ''}`}
-                onClick={() => setAdminStage((prev) => (prev === column.stage ? '全部階段' : column.stage))}
+                className={`pipeline-column ${adminStage === column.stage ? 'active' : ''} ${dragStageTarget === column.stage ? 'drag-target' : ''}`}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  if (dragBookingKey) setDragStageTarget(column.stage)
+                }}
+                onDragLeave={() => {
+                  if (dragStageTarget === column.stage) setDragStageTarget('')
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const bookingKey = event.dataTransfer.getData('text/plain')
+                  const targetBooking = filteredBookings.find((booking) => getBookingKey(booking) === bookingKey)
+                  setDragStageTarget('')
+                  if (targetBooking) {
+                    void moveBookingToStage(targetBooking, column.stage)
+                  }
+                }}
               >
-                <div className="pipeline-column-header">
+                <button
+                  className="pipeline-column-header-btn"
+                  onClick={() => setAdminStage((prev) => (prev === column.stage ? '全部階段' : column.stage))}
+                >
                   <span className={`crm-pill stage-${column.stage}`}>{column.stage}</span>
                   <strong>{column.bookings.length}</strong>
-                </div>
+                </button>
                 <div className="pipeline-column-body">
                   {column.bookings.length > 0 ? (
-                    column.bookings.slice(0, 3).map((booking) => (
-                      <div key={getBookingKey(booking)} className="pipeline-mini-card">
-                        <strong>{booking.name}</strong>
-                        <span>{booking.className}</span>
-                        <span>{booking.assignee}</span>
-                      </div>
-                    ))
+                    column.bookings.slice(0, 4).map((booking) => {
+                      const bookingKey = getBookingKey(booking)
+                      const isDraggingCard = dragBookingKey === bookingKey
+                      return (
+                        <button
+                          key={bookingKey}
+                          className={`pipeline-mini-card ${isDraggingCard ? 'dragging' : ''}`}
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.setData('text/plain', bookingKey)
+                            event.dataTransfer.effectAllowed = 'move'
+                            setDragBookingKey(bookingKey)
+                          }}
+                          onDragEnd={() => {
+                            setDragBookingKey('')
+                            setDragStageTarget('')
+                          }}
+                          onClick={() => {
+                            setSelectedBooking(booking)
+                            setError('')
+                          }}
+                        >
+                          <strong>{booking.name}</strong>
+                          <span>{booking.className}</span>
+                          <span>{booking.assignee}</span>
+                        </button>
+                      )
+                    })
                   ) : (
                     <span className="pipeline-empty-text">目前沒有名單</span>
                   )}
-                  {column.bookings.length > 3 ? <span className="pipeline-more-text">+{column.bookings.length - 3} 筆</span> : null}
+                  {column.bookings.length > 4 ? <span className="pipeline-more-text">+{column.bookings.length - 4} 筆</span> : null}
                 </div>
-              </button>
+              </div>
             ))}
           </div>
 
@@ -1908,6 +1993,18 @@ function App() {
                       <option key={stage}>{stage}</option>
                     ))}
                   </select>
+                  <div className="quick-stage-actions">
+                    {stageOptions.map((stage) => (
+                      <button
+                        key={stage}
+                        className="secondary-btn quick-stage-btn"
+                        onClick={() => updateDetailForm('stage', stage)}
+                        disabled={detailForm.stage === stage}
+                      >
+                        {stage}
+                      </button>
+                    ))}
+                  </div>
                 </label>
                 <label className="detail-field">
                   <span>來源</span>
