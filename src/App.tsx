@@ -333,6 +333,14 @@ function App() {
     })
   }
 
+  const selectAllFilteredBookings = () => {
+    setSelectedBookingKeys(filteredBookings.map((booking) => getBookingKey(booking)))
+  }
+
+  const clearSelectedBookings = () => {
+    setSelectedBookingKeys([])
+  }
+
   const resetAdminFilters = () => {
     setAdminQuery('')
     setAdminStatus('全部')
@@ -417,6 +425,42 @@ function App() {
       setNotice(`已批次更新 ${targets.length} 筆 booking 為 ${batchStatus}`)
     } catch {
       setError('批次更新狀態失敗，請稍後再試')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteSelectedBookings = async () => {
+    if (selectedBookingKeys.length === 0) {
+      setError('請先勾選至少一筆 booking')
+      return
+    }
+
+    const confirmed = window.confirm(`確定要刪除已勾選的 ${selectedBookingKeys.length} 筆 booking 嗎？`)
+    if (!confirmed) return
+
+    setBusy(true)
+    setError('')
+    setNotice('')
+
+    try {
+      const targets = bookings.filter((booking) => selectedBookingKeys.includes(getBookingKey(booking)))
+      await Promise.all(targets.map((booking) => api.deleteBooking(booking.phone, booking.email)))
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+      setSelectedBookingKeys([])
+
+      if (selectedBooking && targets.some((booking) => getBookingKey(booking) === getBookingKey(selectedBooking))) {
+        setSelectedBooking(null)
+      }
+
+      if (lookupResult && targets.some((booking) => booking.phone === lookupResult.phone && booking.email === lookupResult.email)) {
+        setLookupResult(null)
+      }
+
+      setNotice(`已刪除 ${targets.length} 筆 booking`)
+    } catch {
+      setError('批次刪除失敗，請稍後再試')
     } finally {
       setBusy(false)
     }
@@ -941,6 +985,12 @@ function App() {
               <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectCurrentPage} />
               <span>本頁全選</span>
             </label>
+            <button className="secondary-btn batch-mini-btn" onClick={selectAllFilteredBookings} disabled={filteredBookings.length === 0}>
+              全選篩選結果
+            </button>
+            <button className="secondary-btn batch-mini-btn" onClick={clearSelectedBookings} disabled={selectedBookingKeys.length === 0}>
+              清空勾選
+            </button>
             <span className="batch-count">已選 {selectedBookingKeys.length} 筆</span>
             <select value={batchStatus} onChange={(event) => setBatchStatus(event.target.value as BookingRecord['status'])}>
               <option>待回覆</option>
@@ -949,6 +999,9 @@ function App() {
             </select>
             <button className="secondary-btn batch-action-btn" onClick={() => void updateSelectedBookingsStatus()} disabled={busy || selectedBookingKeys.length === 0}>
               {busy ? '批次更新中...' : '批次改狀態'}
+            </button>
+            <button className="danger-btn batch-action-btn" onClick={() => void deleteSelectedBookings()} disabled={busy || selectedBookingKeys.length === 0}>
+              {busy ? '批次處理中...' : '批次刪除'}
             </button>
           </div>
 

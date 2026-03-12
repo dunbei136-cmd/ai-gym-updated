@@ -601,6 +601,10 @@ a {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.batch-mini-btn {
+  min-width: 124px;
+}
+
 .batch-action-btn {
   min-width: 140px;
 }
