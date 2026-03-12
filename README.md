@@ -10,10 +10,17 @@
 - FAQ 問答互動區
 - Booking Lookup（手機 + Email）
 - 體驗課預約 / 名單收集表單
+- Admin / CRM 後台清單
+- 搜尋、篩選、排序、分頁
+- CSV 匯出、批次狀態更新、批次 CRM 更新、批次刪除
+- Booking detail panel（可編輯課程 / 教練 / 預約時間 / 備註 / follow-up）
+- Activity log 手動新增 + 自動留痕
+- Pipeline board 與 stage 拖拉更新
 - 最小可用後端 API
 - SQLite 資料層
 - `/chat` 真 AI + fallback 結構
 - API-ready 結構（demo / HTTP API 可切換）
+- 本地 workflow / edge-case QA 腳本
 - 可本機執行、可 build、可部署
 
 ## 前端啟動
@@ -34,11 +41,21 @@ npm run dev:server
 npm run dev:stack
 ```
 
-## API smoke test
+## QA / 驗證指令
 
 ```bash
+npm run build
 npm run smoke:api
+npm run qa:workflow-local
+npm run qa:edge-local
+npm run qa:all-local
 ```
+
+說明：
+- `smoke:api`：驗證 API 建單、狀態更新、detail 更新與 activity log
+- `qa:workflow-local`：驗證 admin 主流程（建立 → 編輯 → activity log → 儲存）
+- `qa:edge-local`：驗證 batch / filter / dirty-check / delete 等邊界情境
+- `qa:all-local`：依序跑主要本地 QA
 
 預設 API 位址：
 - `http://127.0.0.1:8787`
@@ -85,4 +102,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 - `server/data/pulsefit.db`：SQLite 資料庫
 - `scripts/dev-stack.mjs`：一鍵啟動前後端
 - `scripts/smoke-api.mjs`：API smoke test
+- `scripts/admin-workflow-local-check.mjs`：本地 admin 主流程 QA
+- `scripts/admin-edge-local-check.mjs`：本地 edge-case QA
+- `scripts/run-local-qa.mjs`：整包本地 QA 入口
 - `src/types.ts`：共用型別
