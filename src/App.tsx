@@ -614,6 +614,13 @@ function App() {
     setDetailForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  const appendNoteTemplate = (template: string) => {
+    setDetailForm((prev) => ({
+      ...prev,
+      notes: prev.notes.trim() ? `${prev.notes.trim()}\n${template}` : template,
+    }))
+  }
+
   const confirmLeaveDirtyDetail = () => {
     if (!hasUnsavedDetailChanges) return true
     return window.confirm('目前有未儲存的變更，確定要離開這筆 booking 嗎？')
@@ -1542,6 +1549,17 @@ function App() {
                 </label>
                 <label className="detail-field detail-field-wide">
                   <span>內部備註</span>
+                  <div className="note-template-row">
+                    <button className="secondary-btn note-template-btn" onClick={() => appendNoteTemplate('已電話確認')}>
+                      已電話確認
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendNoteTemplate('客戶想改期，待回覆新時段')}>
+                      改期需求
+                    </button>
+                    <button className="secondary-btn note-template-btn" onClick={() => appendNoteTemplate('可列入回訪名單')}>
+                      回訪名單
+                    </button>
+                  </div>
                   <textarea
                     value={detailForm.notes}
                     onChange={(event) => updateDetailForm('notes', event.target.value)}
