@@ -533,7 +533,7 @@ a {
 
 .admin-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 150px 170px 170px 170px 170px 140px 140px 140px;
+  grid-template-columns: minmax(0, 1fr) 150px 170px 170px 170px 170px 140px 140px 140px 140px;
   gap: 12px;
 }
 
@@ -549,6 +549,7 @@ a {
 }
 
 .admin-export-btn,
+.admin-overdue-btn,
 .admin-selected-btn,
 .admin-clear-btn {
   width: 100%;
@@ -719,6 +720,10 @@ a {
 
 .booking-table tbody tr.active-row {
   background: rgba(86, 160, 255, 0.08);
+}
+
+.booking-table tbody tr.overdue-row {
+  background: rgba(255, 193, 77, 0.06);
 }
 
 .clickable-row {

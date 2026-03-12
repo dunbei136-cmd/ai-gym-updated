@@ -56,6 +56,19 @@ function formatAuditTime(value: string) {
   }).format(date)
 }
 
+function isOverdueBooking(booking: BookingRecord) {
+  if (booking.status === '已完成') return false
+
+  const matched = booking.date.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/)
+  if (!matched) return false
+
+  const [, year, month, day, hour, minute] = matched
+  const bookingTime = new Date(`${year}-${month}-${day}T${hour}:${minute}:00`)
+  if (Number.isNaN(bookingTime.getTime())) return false
+
+  return bookingTime.getTime() < Date.now()
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -108,6 +121,7 @@ function App() {
   const [adminSort, setAdminSort] = useState<'最近更新' | '最早更新' | '預約時間新→舊' | '姓名 A-Z'>('最近更新')
   const [adminStartDate, setAdminStartDate] = useState('')
   const [adminEndDate, setAdminEndDate] = useState('')
+  const [adminOverdueOnly, setAdminOverdueOnly] = useState(false)
   const [adminPage, setAdminPage] = useState(1)
   const [adminPageSize, setAdminPageSize] = useState<5 | 10 | 20>(5)
   const [adminSelectedOnly, setAdminSelectedOnly] = useState(false)
@@ -201,9 +215,10 @@ function App() {
       const matchEndDate = !adminEndDate || (bookingDateOnly && bookingDateOnly <= adminEndDate)
       const matchTrainer = adminTrainer === '全部教練' ? true : booking.trainer === adminTrainer
       const matchClass = adminClass === '全部課程' ? true : booking.className === adminClass
+      const matchOverdueOnly = !adminOverdueOnly || isOverdueBooking(booking)
       const matchSelectedOnly = !adminSelectedOnly || selectedBookingKeys.includes(getBookingKey(booking))
 
-      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchTrainer && matchClass && matchSelectedOnly
+      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchTrainer && matchClass && matchOverdueOnly && matchSelectedOnly
     })
 
     const sorted = [...filtered]
@@ -220,11 +235,11 @@ function App() {
 
     sorted.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     return adminSort === '最早更新' ? sorted : sorted.reverse()
-  }, [adminClass, adminEndDate, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
+  }, [adminClass, adminEndDate, adminOverdueOnly, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminClass, adminEndDate, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer])
+  }, [adminClass, adminEndDate, adminOverdueOnly, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
@@ -248,6 +263,7 @@ function App() {
     adminSort !== '最近更新' ? `排序：${adminSort}` : '',
     adminStartDate ? `開始：${adminStartDate}` : '',
     adminEndDate ? `結束：${adminEndDate}` : '',
+    adminOverdueOnly ? '只看逾期待處理' : '',
     adminSelectedOnly ? '只看已勾選' : '',
   ].filter(Boolean)
 
@@ -401,6 +417,7 @@ function App() {
     setAdminSort('最近更新')
     setAdminStartDate('')
     setAdminEndDate('')
+    setAdminOverdueOnly(false)
     setAdminSelectedOnly(false)
     setAdminPage(1)
   }
@@ -1100,6 +1117,9 @@ function App() {
             <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
               匯出 CSV
             </button>
+            <button className="secondary-btn admin-overdue-btn" onClick={() => setAdminOverdueOnly((prev) => !prev)}>
+              {adminOverdueOnly ? '顯示全部' : '逾期待處理'}
+            </button>
             <button className="secondary-btn admin-selected-btn" onClick={() => setAdminSelectedOnly((prev) => !prev)} disabled={selectedBookingKeys.length === 0 && !adminSelectedOnly}>
               {adminSelectedOnly ? '顯示全部' : '只看已勾選'}
             </button>
@@ -1213,11 +1233,12 @@ function App() {
                         const bookingKey = `${booking.phone}-${booking.email}`
                         const isUpdating = updatingKey === bookingKey
                         const isSelectedRow = selectedBooking?.phone === booking.phone && selectedBooking?.email === booking.email
+                        const isOverdueRow = isOverdueBooking(booking)
 
                         return (
                           <tr
                             key={bookingKey}
-                            className={isSelectedRow ? 'active-row clickable-row' : 'clickable-row'}
+                            className={`${isSelectedRow ? 'active-row ' : ''}${isOverdueRow ? 'overdue-row ' : ''}clickable-row`}
                             onClick={() => {
                               setSelectedBooking(booking)
                               setError('')
