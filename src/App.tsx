@@ -89,6 +89,8 @@ function App() {
   const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
+  const [adminTrainer, setAdminTrainer] = useState('全部教練')
+  const [adminClass, setAdminClass] = useState('全部課程')
   const [adminSort, setAdminSort] = useState<'最新優先' | '最舊優先' | '姓名 A-Z'>('最新優先')
   const [adminStartDate, setAdminStartDate] = useState('')
   const [adminEndDate, setAdminEndDate] = useState('')
@@ -165,6 +167,9 @@ function App() {
     [bookings],
   )
 
+  const trainerOptions = ['全部教練', ...new Set(bookings.map((booking) => booking.trainer))]
+  const classOptions = ['全部課程', ...new Set(bookings.map((booking) => booking.className))]
+
   const filteredBookings = useMemo(() => {
     const filtered = bookings.filter((booking) => {
       const matchStatus = adminStatus === '全部' ? true : booking.status === adminStatus
@@ -180,9 +185,11 @@ function App() {
       const bookingDateOnly = getBookingDateOnly(booking.date)
       const matchStartDate = !adminStartDate || (bookingDateOnly && bookingDateOnly >= adminStartDate)
       const matchEndDate = !adminEndDate || (bookingDateOnly && bookingDateOnly <= adminEndDate)
+      const matchTrainer = adminTrainer === '全部教練' ? true : booking.trainer === adminTrainer
+      const matchClass = adminClass === '全部課程' ? true : booking.className === adminClass
       const matchSelectedOnly = !adminSelectedOnly || selectedBookingKeys.includes(getBookingKey(booking))
 
-      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchSelectedOnly
+      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchTrainer && matchClass && matchSelectedOnly
     })
 
     const sorted = [...filtered]
@@ -194,11 +201,11 @@ function App() {
 
     sorted.sort((a, b) => a.date.localeCompare(b.date))
     return adminSort === '最舊優先' ? sorted : sorted.reverse()
-  }, [adminEndDate, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, bookings, selectedBookingKeys])
+  }, [adminClass, adminEndDate, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer, bookings, selectedBookingKeys])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminEndDate, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus])
+  }, [adminClass, adminEndDate, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, adminTrainer])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
@@ -217,6 +224,8 @@ function App() {
   const activeFilterLabels = [
     adminQuery ? `關鍵字：${adminQuery}` : '',
     adminStatus !== '全部' ? `狀態：${adminStatus}` : '',
+    adminTrainer !== '全部教練' ? `教練：${adminTrainer}` : '',
+    adminClass !== '全部課程' ? `課程：${adminClass}` : '',
     adminSort !== '最新優先' ? `排序：${adminSort}` : '',
     adminStartDate ? `開始：${adminStartDate}` : '',
     adminEndDate ? `結束：${adminEndDate}` : '',
@@ -368,6 +377,8 @@ function App() {
   const resetAdminFilters = () => {
     setAdminQuery('')
     setAdminStatus('全部')
+    setAdminTrainer('全部教練')
+    setAdminClass('全部課程')
     setAdminSort('最新優先')
     setAdminStartDate('')
     setAdminEndDate('')
@@ -1046,6 +1057,16 @@ function App() {
               <option>待回覆</option>
               <option>已確認</option>
               <option>已完成</option>
+            </select>
+            <select value={adminTrainer} onChange={(event) => setAdminTrainer(event.target.value)}>
+              {trainerOptions.map((trainer) => (
+                <option key={trainer}>{trainer}</option>
+              ))}
+            </select>
+            <select value={adminClass} onChange={(event) => setAdminClass(event.target.value)}>
+              {classOptions.map((className) => (
+                <option key={className}>{className}</option>
+              ))}
             </select>
             <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最新優先' | '最舊優先' | '姓名 A-Z')}>
               <option>最新優先</option>
