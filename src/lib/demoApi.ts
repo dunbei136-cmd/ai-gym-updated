@@ -19,6 +19,38 @@ function writeStoredBookings(bookings: BookingRecord[]) {
   window.localStorage.setItem(storageKey, JSON.stringify(bookings))
 }
 
+function getBookingKey(phone: string, email: string) {
+  return `${phone.trim()}::${email.trim().toLowerCase()}`
+}
+
+function readDeletedBookingKeys() {
+  if (typeof window === 'undefined') return [] as string[]
+
+  try {
+    const raw = window.localStorage.getItem(`${storageKey}-deleted`)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+function writeDeletedBookingKeys(keys: string[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(`${storageKey}-deleted`, JSON.stringify(keys))
+}
+
+function listDemoBookings() {
+  const deletedKeys = new Set(readDeletedBookingKeys())
+  const stored = readStoredBookings()
+  const filteredSeed = seedBookingRecords.filter(
+    (item) => !deletedKeys.has(getBookingKey(item.phone, item.email)),
+  )
+
+  return [...stored, ...filteredSeed]
+}
+
 function resolveProgram(goal: string) {
   if (goal === '增肌 / 重訓規劃') {
     return { className: '增肌訓練諮詢', trainer: 'Coach Vera' }
@@ -61,7 +93,7 @@ function buildAssistantReply(message: string) {
 
 export const demoApi: GymApi = {
   async listBookings() {
-    return [...readStoredBookings(), ...seedBookingRecords]
+    return listDemoBookings()
   },
 
   async createBooking(payload: LeadForm) {
@@ -85,13 +117,18 @@ export const demoApi: GymApi = {
     ]
 
     writeStoredBookings(next)
+
+    const deletedKeys = new Set(readDeletedBookingKeys())
+    deletedKeys.delete(getBookingKey(booking.phone, booking.email))
+    writeDeletedBookingKeys([...deletedKeys])
+
     return booking
   },
 
   async lookupBooking(phone: string, email: string) {
     const normalizedPhone = phone.trim()
     const normalizedEmail = email.trim().toLowerCase()
-    const records = [...readStoredBookings(), ...seedBookingRecords]
+    const records = listDemoBookings()
 
     return (
       records.find(
@@ -172,6 +209,21 @@ export const demoApi: GymApi = {
 
     writeStoredBookings(next)
     return updated
+  },
+
+  async deleteBooking(phone: string, email: string) {
+    const normalizedPhone = phone.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+    const next = readStoredBookings().filter(
+      (item) => !(item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail),
+    )
+
+    writeStoredBookings(next)
+
+    const bookingKey = getBookingKey(normalizedPhone, normalizedEmail)
+    const deletedKeys = new Set(readDeletedBookingKeys())
+    deletedKeys.add(bookingKey)
+    writeDeletedBookingKeys([...deletedKeys])
   },
 
   async sendChat(message: string) {

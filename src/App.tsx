@@ -65,6 +65,7 @@ function App() {
     date: '',
   })
   const [detailSaving, setDetailSaving] = useState(false)
+  const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
 
@@ -143,6 +144,17 @@ function App() {
       return matchStatus && matchKeyword
     })
   }, [adminQuery, adminStatus, bookings])
+
+  const selectedBookingIndex = selectedBooking
+    ? filteredBookings.findIndex(
+        (item) => item.phone === selectedBooking.phone && item.email === selectedBooking.email,
+      )
+    : -1
+  const previousBooking = selectedBookingIndex > 0 ? filteredBookings[selectedBookingIndex - 1] : null
+  const nextBooking =
+    selectedBookingIndex >= 0 && selectedBookingIndex < filteredBookings.length - 1
+      ? filteredBookings[selectedBookingIndex + 1]
+      : null
 
   const sendMessage = async (value?: string) => {
     const message = (value ?? chatInput).trim()
@@ -263,6 +275,32 @@ function App() {
       setError('更新 booking 明細失敗，請稍後再試')
     } finally {
       setDetailSaving(false)
+    }
+  }
+
+  const deleteSelectedBooking = async () => {
+    if (!selectedBooking) return
+
+    const confirmed = window.confirm(`確定要刪除 ${selectedBooking.name} 的 booking 嗎？`)
+    if (!confirmed) return
+
+    setDetailDeleting(true)
+    setError('')
+
+    try {
+      await api.deleteBooking(selectedBooking.phone, selectedBooking.email)
+      const nextBookings = await api.listBookings()
+      setBookings(nextBookings)
+
+      if (lookupResult && lookupResult.phone === selectedBooking.phone && lookupResult.email === selectedBooking.email) {
+        setLookupResult(null)
+      }
+
+      setSelectedBooking(null)
+    } catch {
+      setError('刪除 booking 失敗，請稍後再試')
+    } finally {
+      setDetailDeleting(false)
     }
   }
 
@@ -689,15 +727,32 @@ function App() {
                   <p className="section-kicker">Booking Detail</p>
                   <h3>{detailForm.name || selectedBooking.name}</h3>
                 </div>
-                <button
-                  className="detail-close"
-                  onClick={() => {
-                    setSelectedBooking(null)
-                    setError('')
-                  }}
-                >
-                  關閉
-                </button>
+                <div className="detail-header-actions">
+                  <button
+                    className="detail-close"
+                    onClick={() => previousBooking && setSelectedBooking(previousBooking)}
+                    disabled={!previousBooking || detailSaving || detailDeleting}
+                  >
+                    上一筆
+                  </button>
+                  <button
+                    className="detail-close"
+                    onClick={() => nextBooking && setSelectedBooking(nextBooking)}
+                    disabled={!nextBooking || detailSaving || detailDeleting}
+                  >
+                    下一筆
+                  </button>
+                  <button
+                    className="detail-close"
+                    onClick={() => {
+                      setSelectedBooking(null)
+                      setError('')
+                    }}
+                    disabled={detailSaving || detailDeleting}
+                  >
+                    關閉
+                  </button>
+                </div>
               </div>
 
               <div className="detail-grid">
@@ -764,6 +819,13 @@ function App() {
 
               <div className="detail-actions">
                 <button
+                  className="danger-btn detail-action-btn"
+                  onClick={() => void deleteSelectedBooking()}
+                  disabled={detailSaving || detailDeleting}
+                >
+                  {detailDeleting ? '刪除中...' : '刪除 booking'}
+                </button>
+                <button
                   className="secondary-btn detail-action-btn"
                   onClick={() =>
                     setDetailForm({
@@ -773,11 +835,15 @@ function App() {
                       date: selectedBooking.date,
                     })
                   }
-                  disabled={detailSaving}
+                  disabled={detailSaving || detailDeleting}
                 >
                   重設
                 </button>
-                <button className="submit-btn detail-action-btn" onClick={() => void saveBookingDetails()} disabled={detailSaving}>
+                <button
+                  className="submit-btn detail-action-btn"
+                  onClick={() => void saveBookingDetails()}
+                  disabled={detailSaving || detailDeleting}
+                >
                   {detailSaving ? '儲存中...' : '儲存明細'}
                 </button>
               </div>

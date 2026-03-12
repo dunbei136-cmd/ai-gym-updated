@@ -51,5 +51,6 @@ export type GymApi = {
     email: string,
     patch: BookingDetailPatch,
   ) => Promise<BookingRecord>
+  deleteBooking: (phone: string, email: string) => Promise<void>
   sendChat: (message: string) => Promise<string>
 }

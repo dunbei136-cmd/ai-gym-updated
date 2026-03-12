@@ -1,5 +1,5 @@
 import http from 'node:http'
-import { getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
+import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
 const port = Number(process.env.PORT || 8787)
@@ -9,7 +9,7 @@ function json(res, status, data) {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
   })
   res.end(JSON.stringify(data))
 }
@@ -64,7 +64,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     })
     res.end()
     return
@@ -169,6 +169,29 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, updated)
     } catch (error) {
       json(res, 400, { error: error.message || 'Failed to update booking details' })
+    }
+    return
+  }
+
+  if (req.method === 'DELETE' && url.pathname === '/bookings') {
+    try {
+      const body = await collectBody(req)
+      const { phone = '', email = '' } = body
+
+      if (!phone.trim() || !email.trim()) {
+        json(res, 400, { error: 'phone and email are required' })
+        return
+      }
+
+      const deleted = deleteBooking(phone, email)
+      if (!deleted) {
+        json(res, 404, { error: 'Booking not found' })
+        return
+      }
+
+      json(res, 200, { ok: true })
+    } catch (error) {
+      json(res, 400, { error: error.message || 'Failed to delete booking' })
     }
     return
   }

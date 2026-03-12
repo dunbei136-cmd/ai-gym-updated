@@ -183,6 +183,20 @@ export function updateBookingDetails(phone, email, patch) {
   return lookupBooking(phone, email)
 }
 
+export function deleteBooking(phone, email) {
+  const normalizedPhone = phone.trim()
+  const normalizedEmail = email.trim().toLowerCase()
+  const existing = lookupBooking(normalizedPhone, normalizedEmail)
+  if (!existing) return false
+
+  db.prepare(`
+    DELETE FROM bookings
+    WHERE phone = ? AND lower(email) = lower(?)
+  `).run(normalizedPhone, normalizedEmail)
+
+  return true
+}
+
 export function getDbMeta() {
   const row = db.prepare('SELECT COUNT(*) AS count FROM bookings').get()
   return {

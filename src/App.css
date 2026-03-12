@@ -348,6 +348,7 @@ a {
 .primary-btn,
 .secondary-btn,
 .submit-btn,
+.danger-btn,
 .chat-input-row button {
   border-radius: 999px;
   transition: transform 0.16s ease, opacity 0.16s ease;
@@ -357,6 +358,7 @@ a {
 .primary-btn,
 .secondary-btn,
 .submit-btn,
+.danger-btn,
 .chat-input-row button,
 .faq-item {
   cursor: pointer;
@@ -366,6 +368,7 @@ a {
 .primary-btn:hover,
 .secondary-btn:hover,
 .submit-btn:hover,
+.danger-btn:hover,
 .chat-input-row button:hover,
 .faq-item:hover {
   transform: translateY(-1px);
@@ -380,7 +383,8 @@ a {
 
 .primary-btn,
 .secondary-btn,
-.submit-btn {
+.submit-btn,
+.danger-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -395,6 +399,12 @@ a {
   border: none;
   color: #08111f;
   background: linear-gradient(135deg, #6ab3ff, #43e0cb);
+}
+
+.danger-btn {
+  border: 1px solid rgba(255, 120, 120, 0.25);
+  color: #ffd6d6;
+  background: rgba(255, 92, 92, 0.14);
 }
 
 .secondary-btn {
@@ -566,6 +576,13 @@ a {
   margin-bottom: 14px;
 }
 
+.detail-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -691,7 +708,9 @@ a {
     align-items: start;
   }
 
+  .detail-header-actions,
   .detail-actions {
+    width: 100%;
     flex-direction: column;
   }
 
