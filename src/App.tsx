@@ -94,6 +94,7 @@ function App() {
   const [adminEndDate, setAdminEndDate] = useState('')
   const [adminPage, setAdminPage] = useState(1)
   const [adminPageSize, setAdminPageSize] = useState<5 | 10 | 20>(5)
+  const [adminSelectedOnly, setAdminSelectedOnly] = useState(false)
   const [selectedBookingKeys, setSelectedBookingKeys] = useState<string[]>([])
   const [batchStatus, setBatchStatus] = useState<BookingRecord['status']>('待回覆')
 
@@ -179,8 +180,9 @@ function App() {
       const bookingDateOnly = getBookingDateOnly(booking.date)
       const matchStartDate = !adminStartDate || (bookingDateOnly && bookingDateOnly >= adminStartDate)
       const matchEndDate = !adminEndDate || (bookingDateOnly && bookingDateOnly <= adminEndDate)
+      const matchSelectedOnly = !adminSelectedOnly || selectedBookingKeys.includes(getBookingKey(booking))
 
-      return matchStatus && matchKeyword && matchStartDate && matchEndDate
+      return matchStatus && matchKeyword && matchStartDate && matchEndDate && matchSelectedOnly
     })
 
     const sorted = [...filtered]
@@ -192,11 +194,11 @@ function App() {
 
     sorted.sort((a, b) => a.date.localeCompare(b.date))
     return adminSort === '最舊優先' ? sorted : sorted.reverse()
-  }, [adminEndDate, adminQuery, adminSort, adminStartDate, adminStatus, bookings])
+  }, [adminEndDate, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus, bookings, selectedBookingKeys])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminEndDate, adminPageSize, adminQuery, adminSort, adminStartDate, adminStatus])
+  }, [adminEndDate, adminPageSize, adminQuery, adminSelectedOnly, adminSort, adminStartDate, adminStatus])
 
   useEffect(() => {
     const validKeys = new Set(bookings.map((booking) => getBookingKey(booking)))
@@ -218,7 +220,15 @@ function App() {
     adminSort !== '最新優先' ? `排序：${adminSort}` : '',
     adminStartDate ? `開始：${adminStartDate}` : '',
     adminEndDate ? `結束：${adminEndDate}` : '',
+    adminSelectedOnly ? '只看已勾選' : '',
   ].filter(Boolean)
+
+  const filteredAdminStats = {
+    total: filteredBookings.length,
+    pending: filteredBookings.filter((booking) => booking.status === '待回覆').length,
+    confirmed: filteredBookings.filter((booking) => booking.status === '已確認').length,
+    completed: filteredBookings.filter((booking) => booking.status === '已完成').length,
+  }
 
   const selectedBookingIndex = selectedBooking
     ? filteredBookings.findIndex(
@@ -354,6 +364,7 @@ function App() {
     setAdminSort('最新優先')
     setAdminStartDate('')
     setAdminEndDate('')
+    setAdminSelectedOnly(false)
     setAdminPage(1)
   }
 
@@ -993,6 +1004,9 @@ function App() {
             <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
               匯出 CSV
             </button>
+            <button className="secondary-btn admin-selected-btn" onClick={() => setAdminSelectedOnly((prev) => !prev)} disabled={selectedBookingKeys.length === 0 && !adminSelectedOnly}>
+              {adminSelectedOnly ? '顯示全部' : '只看已勾選'}
+            </button>
             <button className="secondary-btn admin-clear-btn" onClick={resetAdminFilters} disabled={activeFilterLabels.length === 0}>
               清除篩選
             </button>
@@ -1007,6 +1021,25 @@ function App() {
               ))}
             </div>
           ) : null}
+
+          <div className="filtered-stats-grid">
+            <div className="filtered-stat-card">
+              <strong>{filteredAdminStats.total}</strong>
+              <span>目前結果</span>
+            </div>
+            <div className="filtered-stat-card">
+              <strong>{filteredAdminStats.pending}</strong>
+              <span>待回覆</span>
+            </div>
+            <div className="filtered-stat-card">
+              <strong>{filteredAdminStats.confirmed}</strong>
+              <span>已確認</span>
+            </div>
+            <div className="filtered-stat-card">
+              <strong>{filteredAdminStats.completed}</strong>
+              <span>已完成</span>
+            </div>
+          </div>
 
           <div className="batch-toolbar">
             <label className="batch-select-label">
@@ -1124,22 +1157,25 @@ function App() {
                             </td>
                             <td>{formatBookingDateLabel(booking.date)}</td>
                             <td>
-                              <select
-                                value={booking.status}
-                                disabled={isUpdating}
-                                onClick={(event) => event.stopPropagation()}
-                                onChange={(event) =>
-                                  void changeBookingStatus(
-                                    booking.phone,
-                                    booking.email,
-                                    event.target.value as BookingRecord['status'],
-                                  )
-                                }
-                              >
-                                <option>待回覆</option>
-                                <option>已確認</option>
-                                <option>已完成</option>
-                              </select>
+                              <div className="booking-table-stack">
+                                <span className={`status-pill status-${booking.status}`}>{booking.status}</span>
+                                <select
+                                  value={booking.status}
+                                  disabled={isUpdating}
+                                  onClick={(event) => event.stopPropagation()}
+                                  onChange={(event) =>
+                                    void changeBookingStatus(
+                                      booking.phone,
+                                      booking.email,
+                                      event.target.value as BookingRecord['status'],
+                                    )
+                                  }
+                                >
+                                  <option>待回覆</option>
+                                  <option>已確認</option>
+                                  <option>已完成</option>
+                                </select>
+                              </div>
                             </td>
                             <td>
                               <button

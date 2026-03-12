@@ -533,7 +533,7 @@ a {
 
 .admin-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 180px 180px 170px 170px 150px 150px;
+  grid-template-columns: minmax(0, 1fr) 160px 160px 170px 170px 140px 140px 140px;
   gap: 12px;
 }
 
@@ -549,6 +549,7 @@ a {
 }
 
 .admin-export-btn,
+.admin-selected-btn,
 .admin-clear-btn {
   width: 100%;
 }
@@ -568,6 +569,25 @@ a {
   color: #d8e1ff;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.filtered-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.filtered-stat-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 6px;
+}
+
+.filtered-stat-card span {
+  color: #bdcaea;
 }
 
 .batch-toolbar {
@@ -873,6 +893,21 @@ a {
   font-weight: 700;
 }
 
+.status-待回覆 {
+  background: rgba(255, 193, 77, 0.16);
+  color: #ffd98f;
+}
+
+.status-已確認 {
+  background: rgba(86, 160, 255, 0.16);
+  color: #9acbff;
+}
+
+.status-已完成 {
+  background: rgba(47, 182, 140, 0.16);
+  color: #8df0bf;
+}
+
 .testimonial-list footer {
   margin-top: 10px;
   color: #8ebcff;
@@ -915,7 +950,8 @@ a {
   .plans-grid,
   .chat-layout,
   .footer,
-  .admin-stats-grid {
+  .admin-stats-grid,
+  .filtered-stats-grid {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
