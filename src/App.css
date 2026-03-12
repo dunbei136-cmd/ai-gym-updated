@@ -533,7 +533,7 @@ a {
 
 .admin-toolbar {
   display: grid;
-  grid-template-columns: 1fr 180px;
+  grid-template-columns: minmax(0, 1fr) 180px 180px 150px;
   gap: 12px;
 }
 
@@ -546,6 +546,10 @@ a {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-export-btn {
+  width: 100%;
 }
 
 .booking-table-shell {

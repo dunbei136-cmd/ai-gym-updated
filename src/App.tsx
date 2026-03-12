@@ -75,6 +75,7 @@ function App() {
   const [detailDeleting, setDetailDeleting] = useState(false)
   const [adminQuery, setAdminQuery] = useState('')
   const [adminStatus, setAdminStatus] = useState<'全部' | '待回覆' | '已確認' | '已完成'>('全部')
+  const [adminSort, setAdminSort] = useState<'最新優先' | '最舊優先' | '姓名 A-Z'>('最新優先')
   const [adminPage, setAdminPage] = useState(1)
 
   useEffect(() => {
@@ -139,7 +140,7 @@ function App() {
   )
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter((booking) => {
+    const filtered = bookings.filter((booking) => {
       const matchStatus = adminStatus === '全部' ? true : booking.status === adminStatus
       const keyword = adminQuery.trim().toLowerCase()
       const matchKeyword =
@@ -151,11 +152,21 @@ function App() {
 
       return matchStatus && matchKeyword
     })
-  }, [adminQuery, adminStatus, bookings])
+
+    const sorted = [...filtered]
+
+    if (adminSort === '姓名 A-Z') {
+      sorted.sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+      return sorted
+    }
+
+    sorted.sort((a, b) => a.date.localeCompare(b.date))
+    return adminSort === '最舊優先' ? sorted : sorted.reverse()
+  }, [adminQuery, adminSort, adminStatus, bookings])
 
   useEffect(() => {
     setAdminPage(1)
-  }, [adminQuery, adminStatus])
+  }, [adminQuery, adminSort, adminStatus])
 
   const totalAdminPages = Math.max(1, Math.ceil(filteredBookings.length / 5))
   const safeAdminPage = Math.min(adminPage, totalAdminPages)
@@ -258,6 +269,33 @@ function App() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const exportBookingsCsv = () => {
+    const rows = [
+      ['姓名', '手機', 'Email', '課程', '教練', '預約時間', '狀態'],
+      ...filteredBookings.map((booking) => [
+        booking.name,
+        booking.phone,
+        booking.email,
+        booking.className,
+        booking.trainer,
+        booking.date,
+        booking.status,
+      ]),
+    ]
+
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `pulsefit-bookings-${Date.now()}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   const changeBookingStatus = async (
@@ -765,6 +803,14 @@ function App() {
               <option>已確認</option>
               <option>已完成</option>
             </select>
+            <select value={adminSort} onChange={(event) => setAdminSort(event.target.value as '最新優先' | '最舊優先' | '姓名 A-Z')}>
+              <option>最新優先</option>
+              <option>最舊優先</option>
+              <option>姓名 A-Z</option>
+            </select>
+            <button className="secondary-btn admin-export-btn" onClick={exportBookingsCsv} disabled={filteredBookings.length === 0}>
+              匯出 CSV
+            </button>
           </div>
 
           <div className="booking-table-shell">
