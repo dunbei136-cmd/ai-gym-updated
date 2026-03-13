@@ -112,6 +112,25 @@ function getSortIndicator(active: boolean) {
   return active ? ' ↓' : ''
 }
 
+function normalizeChatReply(value: string) {
+  return value.trim().replace(/\s+/g, ' ')
+}
+
+function getSafeAssistantReply(nextReply: string, previousAssistantReply?: string) {
+  const normalizedNext = normalizeChatReply(nextReply)
+  const normalizedPrevious = normalizeChatReply(previousAssistantReply ?? '')
+
+  if (!normalizedNext) {
+    return '我在，你可以直接跟我說想了解課程、價格、時段，或是想查預約，我幫你接下去。'
+  }
+
+  if (!normalizedPrevious || normalizedNext !== normalizedPrevious) {
+    return nextReply
+  }
+
+  return '我在，你可以直接跟我說想了解課程、價格、時段，或是想查預約，我幫你接下去。'
+}
+
 function createActivityLogEntry(note: string) {
   const trimmed = note.trim()
   if (!trimmed) return ''
@@ -496,7 +515,10 @@ function App() {
 
     try {
       const reply = await api.sendChat(message)
-      setChatMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      setChatMessages((prev) => {
+        const previousAssistantReply = [...prev].reverse().find((item) => item.role === 'assistant')?.content
+        return [...prev, { role: 'assistant', content: getSafeAssistantReply(reply, previousAssistantReply) }]
+      })
     } catch {
       setChatMessages((prev) => [
         ...prev,

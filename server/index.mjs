@@ -84,6 +84,51 @@ function requireAuthOrRespond(req, res) {
   return session
 }
 
+function normalizeChatText(value = '') {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isGreetingMessage(value = '') {
+  const normalized = normalizeChatText(value)
+  return /^(hi|hello|hey|你好|哈囉|哈罗|嗨|安安|在嗎|在吗|有人嗎|有人吗)$/.test(normalized)
+}
+
+function isSmallTalkMessage(value = '') {
+  const normalized = normalizeChatText(value)
+  return (
+    normalized.includes('你在幹嘛') ||
+    normalized.includes('你在干嘛') ||
+    normalized.includes('你在做什麼') ||
+    normalized.includes('你在做什么') ||
+    normalized.includes('忙嗎') ||
+    normalized.includes('忙吗') ||
+    normalized.includes('你是誰') ||
+    normalized.includes('你是谁')
+  )
+}
+
+function buildLineSoftFallbackReply(input = '') {
+  const normalized = normalizeChatText(input)
+
+  if (isGreetingMessage(normalized)) {
+    return '哈囉，我在。你想先了解課程、價格，還是直接預約體驗？'
+  }
+
+  if (isSmallTalkMessage(normalized)) {
+    return '我在啊 😄 你可以直接跟我說想問課程、費用，還是想安排體驗，我幫你接。'
+  }
+
+  if (normalized.includes('價格') || normalized.includes('費用') || normalized.includes('多少')) {
+    return '可以，我先幫你抓方向。你比較想了解體驗課、月會籍，還是一對一教練課？'
+  }
+
+  if (normalized.includes('課') || normalized.includes('推薦') || normalized.includes('新手')) {
+    return '可以啊，你直接跟我說你是想減脂、增肌，還是先從新手體驗開始，我幫你縮小到比較適合的課。'
+  }
+
+  return '我在，你可以直接跟我說想了解課程、價格、預約，或是查詢目前的 booking，我幫你接下去。'
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host}`)
 
@@ -139,7 +184,7 @@ const server = http.createServer(async (req, res) => {
 
         const session = upsertLineSession(textEvent.userId, {})
         const input = textEvent.text
-        let replyText = '你可以直接跟我說「我要預約」，我會用最簡單的方式幫你完成，不用一次把資料全丟給我。'
+        let replyText = buildLineSoftFallbackReply(input)
 
         if (input.includes('取消') || input.includes('重來')) {
           resetLineSession(textEvent.userId)

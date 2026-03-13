@@ -2,6 +2,7 @@ import { seedBookingRecords, storageKey } from '../data/content'
 import type { AuthCredentials, AuthSession, BookingDetailPatch, BookingRecord, GymApi, LeadForm, LeadSource, LeadStage } from '../types'
 
 const authStorageKey = `${storageKey}-auth-session`
+let lastDemoReply = ''
 
 function readDemoSession(): AuthSession | null {
   if (typeof window === 'undefined') return null
@@ -203,34 +204,123 @@ function buildDetailChangeEntries(existing: BookingRecord | undefined, patch: Bo
   return prependActivityEntries(patchLog, nextEntries)
 }
 
+function normalizeMessage(message: string) {
+  return message.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function chooseVariant(message: string, variants: string[]) {
+  const normalized = normalizeMessage(message)
+  const seed = [...normalized].reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return variants[seed % variants.length]
+}
+
+function detectChatIntent(message: string) {
+  const normalized = normalizeMessage(message)
+
+  if (!normalized) return 'empty'
+  if (/^(hi|hello|hey|哈囉|哈罗|你好|嗨|安安|在嗎|在吗|有人嗎|有人吗)$/.test(normalized)) return 'greeting'
+  if (
+    normalized.includes('你在幹嘛') ||
+    normalized.includes('你在干嘛') ||
+    normalized.includes('你在做什麼') ||
+    normalized.includes('你在做什么') ||
+    normalized.includes('忙嗎') ||
+    normalized.includes('忙吗') ||
+    normalized.includes('你是誰') ||
+    normalized.includes('你是谁')
+  ) return 'smalltalk'
+  if (normalized.includes('停車') || normalized.includes('停车')) return 'parking'
+  if (normalized.includes('明天') && (normalized.includes('課') || normalized.includes('团课') || normalized.includes('課程'))) return 'tomorrow-course'
+  if (normalized.includes('高手') || normalized.includes('進階') || normalized.includes('进阶') || normalized.includes('有重訓經驗') || normalized.includes('有在練')) return 'experienced'
+  if (normalized.includes('會員') || normalized.includes('費用') || normalized.includes('价格') || normalized.includes('價格')) return 'pricing'
+  if (normalized.includes('新手') || normalized.includes('推薦') || normalized.includes('推荐')) return 'beginner'
+  if (normalized.includes('查詢') || normalized.includes('預約') || normalized.includes('booking')) return 'lookup'
+  if (normalized.includes('課') || normalized.includes('课程')) return 'course'
+
+  return 'fallback'
+}
+
+function antiRepeatReply(nextReply: string, alternatives: string[]) {
+  if (nextReply !== lastDemoReply) {
+    lastDemoReply = nextReply
+    return nextReply
+  }
+
+  const alternative = alternatives.find((item) => item !== lastDemoReply)
+  if (alternative) {
+    lastDemoReply = alternative
+    return alternative
+  }
+
+  const softened = `${nextReply} 你如果願意，也可以直接說你的目標，我幫你往下接。`
+  lastDemoReply = softened
+  return softened
+}
+
 function buildAssistantReply(message: string) {
-  const normalized = message.trim().toLowerCase()
+  const intent = detectChatIntent(message)
 
-  if (normalized.includes('停車')) {
-    return '有，示意場館設定為附近有合作停車場與路邊停車格；如果你是第一次來，建議提早 10 分鐘到，找車位跟報到會比較從容。'
+  switch (intent) {
+    case 'greeting': {
+      const variants = [
+        '哈囉，我在。你想先了解課程、價格，還是直接看可約時間？',
+        '嗨，我在這邊。你可以直接跟我說想問課程、費用，或是想安排體驗。',
+        '你好，我在。你今天是想先問問看，還是已經想直接約時間？',
+      ]
+      return antiRepeatReply(chooseVariant(message, variants), variants)
+    }
+    case 'smalltalk': {
+      const variants = [
+        '我在啊，等你丟問題給我 😄 你想了解課程、價格，還是直接預約？',
+        '在，沒有消失。你想先聊方案、費用，還是看時間？',
+        '我在，隨時可以接你。你今天是想先了解一下，還是有想直接安排？',
+      ]
+      return antiRepeatReply(chooseVariant(message, variants), variants)
+    }
+    case 'parking':
+      return antiRepeatReply(
+        '有，示意場館設定為附近有合作停車場與路邊停車格；如果你是第一次來，建議提早 10 分鐘到，找車位跟報到都比較從容。',
+        ['有，附近有合作停車場跟路邊停車格；第一次來的話建議提早 10 分鐘到，會比較從容。'],
+      )
+    case 'tomorrow-course':
+      return antiRepeatReply(
+        '明天目前可安排的示意課程包含「新手燃脂體驗課」、「增肌訓練諮詢」與「團體課體驗」；如果你告訴我是想減脂、增肌，還是先體驗看看，我可以直接幫你縮小到最適合的一堂。',
+        ['明天目前有幾種示意課程可以排；你如果告訴我目標，我可以直接幫你挑比較適合的一堂。'],
+      )
+    case 'experienced':
+      return antiRepeatReply(
+        '如果你已經有訓練底子，我會優先推薦「增肌訓練諮詢」或進階強度的一對一教練課，先看你的訓練年資、目前卡關點，再安排比較合適。',
+        ['如果你不是新手，我們就直接講重點。你現在比較卡的是增肌、動作，還是訓練安排？'],
+      )
+    case 'pricing':
+      return antiRepeatReply(
+        '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；如果你還沒上過，通常會建議先從體驗課開始。',
+        ['費用會依體驗課、月會籍和一對一教練課而不同；如果你告訴我目標，我可以先幫你縮小方案。'],
+      )
+    case 'beginner':
+      return antiRepeatReply(
+        '如果你是新手，我會優先推薦「新手燃脂體驗課」或「體態評估 + 教練諮詢」，先確認目標再安排適合的教練。',
+        ['新手也沒關係，我通常會先建議從體驗課或體態評估開始，比較不會有壓力。'],
+      )
+    case 'lookup':
+      return antiRepeatReply(
+        '可以，你可以直接到 Booking Lookup 輸入手機號碼與 Email，查詢預設 demo 或剛建立的新預約。',
+        ['沒問題，想查預約的話用手機號碼加 Email 就可以查到了。'],
+      )
+    case 'course':
+      return antiRepeatReply(
+        '如果你告訴我是想減脂、增肌、體態調整，還是先體驗看看，我可以直接幫你縮小到最適合的一堂課。',
+        ['可以，你先說一下目標，我幫你抓比較適合的課程方向。'],
+      )
+    default: {
+      const variants = [
+        '我是健身房 AI 接待助理，目前可協助 FAQ、方案介紹、停車資訊、課程建議、體驗課導流與預約查詢。',
+        '我在，你可以直接跟我說想了解課程、價格、時段，或是想查預約，我幫你接下去。',
+        '沒事，你直接丟問題給我就好；你想先看方案、費用，還是預約流程？',
+      ]
+      return antiRepeatReply(chooseVariant(message, variants), variants)
+    }
   }
-
-  if (normalized.includes('明天') && (normalized.includes('課') || normalized.includes('團課') || normalized.includes('課程'))) {
-    return '明天目前可安排的示意課程包含「新手燃脂體驗課」、「增肌訓練諮詢」與「團體課體驗」；如果你告訴我是想減脂、增肌，還是先體驗看看，我可以直接幫你縮小到最適合的一堂。'
-  }
-
-  if (normalized.includes('高手') || normalized.includes('進階') || normalized.includes('有重訓經驗')) {
-    return '如果你已經有訓練底子，我會優先推薦「增肌訓練諮詢」或進階強度的一對一教練課，先看你的訓練年資、目前卡關點，再安排比較合適。'
-  }
-
-  if (normalized.includes('會員') || normalized.includes('費用') || normalized.includes('價格')) {
-    return '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；如果你還沒上過，通常會建議先從體驗課開始。'
-  }
-
-  if (normalized.includes('新手') || normalized.includes('推薦') || normalized.includes('課')) {
-    return '如果你是新手，我會優先推薦「新手燃脂體驗課」或「體態評估 + 教練諮詢」，先確認目標再安排適合的教練。'
-  }
-
-  if (normalized.includes('查詢') || normalized.includes('預約') || normalized.includes('booking')) {
-    return '可以，你可以直接到 Booking Lookup 輸入手機號碼與 Email，查詢預設 demo 或剛建立的新預約。'
-  }
-
-  return '我是健身房 AI 接待助理，目前可協助 FAQ、方案介紹、停車資訊、課程建議、體驗課導流與預約查詢。'
 }
 
 export const demoApi: GymApi = {
