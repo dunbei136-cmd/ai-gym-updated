@@ -2,16 +2,16 @@
 
 ## 專案定位
 
-做出一個 **可跑、可 demo、可對外展示** 的健身房 AI 預約機器人 MVP。
+做出一個 **可跑、可 demo、可對外展示** 的健身房 AI 預約 / CRM MVP。
 
-這版不是 production，而是先完成：
+這版仍然不是 production，但目前已經完成：
 
 - 可本機穩定運行
-- 可手動驗收
-- 可展示給健身房老闆或潛在客戶
-- 可部署到外部網址
+- 可 build / 可部署
+- 可展示前台導流 + 後台 CRM 跟進流程
+- 可用本地 QA 腳本驗證主要操作
 
-## 目前 MVP 範圍
+## 目前已完成範圍
 
 ### 前台使用者流程
 
@@ -26,34 +26,59 @@
 
 3. **Booking Lookup**
    - 使用手機號碼 + Email 查詢
-   - 顯示 demo 預約資料
+   - 可顯示 demo 預約資料與新建立資料
+
+4. **Lead / booking 建立**
+   - 可從前台表單建立名單
+   - 可從 admin 端快速建立 booking
+
+### 後台 / CRM 流程
+
+1. **Admin booking 清單**
+   - 搜尋、篩選、排序、分頁
+   - 狀態總覽與 CRM 統計
+
+2. **Batch 操作**
+   - 批次改狀態
+   - 批次改 CRM 欄位
+   - 匯出已勾選 / 匯出 CSV
+   - 批次刪除
+
+3. **Booking detail panel**
+   - 編輯課程、教練、預約時間、備註、來源、負責人、follow-up
+   - dirty-check 與快捷鍵儲存
+
+4. **Activity log / pipeline**
+   - 手動新增聯絡紀錄
+   - 狀態與 detail 變更自動留痕
+   - pipeline board 與 stage 更新
 
 ## 目前技術選型
 
 - **Vite + React + TypeScript**
-- 前端靜態可部署
-- Demo 資料先以本地 mock 為主
-- AI 回覆先以規則式互動展示流程
+- SQLite 後端資料層
+- Demo / HTTP API 可切換
+- `/chat` 支援真 AI + fallback
+- Playwright 本地 QA 腳本
 
-## 為什麼先這樣做
+## 已補齊的驗證
 
-先完成可展示版本，讓專案有：
-
-- 看得見的互動畫面
-- 可測試的查詢流程
-- 可說服客戶的 demo
-- 未來可擴充的技術底座
+- `npm run build`
+- `npm run smoke:api`
+- `npm run qa:workflow-local`
+- `npm run qa:edge-local`
+- `npm run qa:all-local`
 
 ## 下一階段建議
 
 ### Phase 2
-- 串接真實 AI API
-- 串接後端與資料庫
-- 建立正式預約寫入流程
-- 增加 lead capture（姓名、需求、聯絡方式）
+- 串接真實 AI API / 真實 CRM
+- 建立正式身分驗證與權限控管
+- 補正式後端驗證 / audit trail / API 安全性
+- 補更完整的部署與監控流程
 
 ### Phase 3
-- 後台查詢與客服接手
-- 會員資料管理
 - LINE / Web chat / CRM 整合
-- 權限控管與正式部署流程
+- 正式會員資料管理
+- 客服接手流程
+- Production-ready 權限、稽核、營運面板
