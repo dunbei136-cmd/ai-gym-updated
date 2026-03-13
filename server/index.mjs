@@ -4,6 +4,9 @@ import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDet
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
 const port = Number(process.env.PORT || 8787)
+const validStatuses = new Set(['待回覆', '已確認', '已完成'])
+const validStages = new Set(['新名單', '已聯繫', '已預約體驗', '已成交', '流失'])
+const validSources = new Set(['網站表單', 'AI 聊天', 'LINE', '電話', 'Walk-in'])
 
 function json(res, status, data) {
   res.writeHead(status, {
@@ -13,6 +16,16 @@ function json(res, status, data) {
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
   })
   res.end(JSON.stringify(data))
+}
+
+function sendError(res, status, code, message) {
+  json(res, status, {
+    ok: false,
+    error: {
+      code,
+      message,
+    },
+  })
 }
 
 function resolveProgram(goal) {
@@ -58,6 +71,15 @@ function collectBody(req) {
   })
 }
 
+function requireAuthOrRespond(req, res) {
+  const session = requireSession(req)
+  if (!session) {
+    sendError(res, 401, 'UNAUTHORIZED', '請先登入後台帳號')
+    return null
+  }
+  return session
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host}`)
 
@@ -78,12 +100,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/auth/session') {
     const session = requireSession(req)
-    if (!session) {
-      json(res, 200, { ok: true, session: null })
-      return
-    }
-
-    json(res, 200, { ok: true, session })
+    json(res, 200, { ok: true, session: session ?? null })
     return
   }
 
@@ -94,19 +111,19 @@ const server = http.createServer(async (req, res) => {
       const password = typeof body.password === 'string' ? body.password : ''
 
       if (!username || !password) {
-        json(res, 400, { ok: false, error: 'username and password are required' })
+        sendError(res, 400, 'VALIDATION_ERROR', 'username and password are required')
         return
       }
 
       const result = authenticateAdmin(username, password)
       if (!result) {
-        json(res, 401, { ok: false, error: 'Invalid credentials' })
+        sendError(res, 401, 'INVALID_CREDENTIALS', '帳號或密碼錯誤')
         return
       }
 
       json(res, 200, { ok: true, token: result.token, session: result.session })
     } catch (error) {
-      json(res, 400, { ok: false, error: error.message || 'Failed to login' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to login')
     }
     return
   }
@@ -128,7 +145,7 @@ const server = http.createServer(async (req, res) => {
     const found = lookupBooking(phone, email)
 
     if (!found) {
-      json(res, 404, { error: 'Booking not found' })
+      sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
       return
     }
 
@@ -142,7 +159,7 @@ const server = http.createServer(async (req, res) => {
       const { name = '', phone = '', email = '', goal = '減脂 / 新手入門', preferredSlot = '平日晚上' } = body
 
       if (!name.trim() || !phone.trim() || !email.trim()) {
-        json(res, 400, { error: 'name, phone, email are required' })
+        sendError(res, 400, 'VALIDATION_ERROR', 'name, phone, email are required')
         return
       }
 
@@ -166,46 +183,43 @@ const server = http.createServer(async (req, res) => {
 
       json(res, 201, booking)
     } catch (error) {
-      json(res, 400, { error: error.message || 'Failed to create booking' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to create booking')
     }
     return
   }
 
   if (req.method === 'POST' && url.pathname === '/bookings/status') {
-    const session = requireSession(req)
-    if (!session) {
-      json(res, 401, { ok: false, error: 'Unauthorized' })
-      return
-    }
+    if (!requireAuthOrRespond(req, res)) return
 
     try {
       const body = await collectBody(req)
       const { phone = '', email = '', status = '' } = body
 
       if (!phone.trim() || !email.trim() || !status) {
-        json(res, 400, { error: 'phone, email, status are required' })
+        sendError(res, 400, 'VALIDATION_ERROR', 'phone, email, status are required')
+        return
+      }
+
+      if (!validStatuses.has(status)) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'status is invalid')
         return
       }
 
       const updated = updateBookingStatus(phone, email, status)
       if (!updated) {
-        json(res, 404, { error: 'Booking not found' })
+        sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
         return
       }
 
       json(res, 200, updated)
     } catch (error) {
-      json(res, 400, { error: error.message || 'Failed to update booking status' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to update booking status')
     }
     return
   }
 
   if (req.method === 'POST' && url.pathname === '/bookings/details') {
-    const session = requireSession(req)
-    if (!session) {
-      json(res, 401, { ok: false, error: 'Unauthorized' })
-      return
-    }
+    if (!requireAuthOrRespond(req, res)) return
 
     try {
       const body = await collectBody(req)
@@ -225,7 +239,17 @@ const server = http.createServer(async (req, res) => {
       } = body
 
       if (!phone.trim() || !email.trim() || !name.trim() || !className.trim() || !trainer.trim() || !date.trim()) {
-        json(res, 400, { error: 'phone, email, name, className, trainer, date are required' })
+        sendError(res, 400, 'VALIDATION_ERROR', 'phone, email, name, className, trainer, date are required')
+        return
+      }
+
+      if (!validStages.has(stage)) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'stage is invalid')
+        return
+      }
+
+      if (!validSources.has(source)) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'source is invalid')
         return
       }
 
@@ -235,49 +259,45 @@ const server = http.createServer(async (req, res) => {
         trainer: trainer.trim(),
         date: date.trim(),
         notes: typeof notes === 'string' ? notes.trim() : '',
-        stage: typeof stage === 'string' ? stage : '新名單',
-        source: typeof source === 'string' ? source : '網站表單',
+        stage,
+        source,
         assignee: typeof assignee === 'string' ? assignee.trim() || '未指派' : '未指派',
         nextFollowUpAt: typeof nextFollowUpAt === 'string' ? nextFollowUpAt : '',
         activityLog: Array.isArray(activityLog) ? activityLog.filter((entry) => typeof entry === 'string') : [],
       })
       if (!updated) {
-        json(res, 404, { error: 'Booking not found' })
+        sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
         return
       }
 
       json(res, 200, updated)
     } catch (error) {
-      json(res, 400, { error: error.message || 'Failed to update booking details' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to update booking details')
     }
     return
   }
 
   if (req.method === 'DELETE' && url.pathname === '/bookings') {
-    const session = requireSession(req)
-    if (!session) {
-      json(res, 401, { ok: false, error: 'Unauthorized' })
-      return
-    }
+    if (!requireAuthOrRespond(req, res)) return
 
     try {
       const body = await collectBody(req)
       const { phone = '', email = '' } = body
 
       if (!phone.trim() || !email.trim()) {
-        json(res, 400, { error: 'phone and email are required' })
+        sendError(res, 400, 'VALIDATION_ERROR', 'phone and email are required')
         return
       }
 
       const deleted = deleteBooking(phone, email)
       if (!deleted) {
-        json(res, 404, { error: 'Booking not found' })
+        sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
         return
       }
 
       json(res, 200, { ok: true })
     } catch (error) {
-      json(res, 400, { error: error.message || 'Failed to delete booking' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to delete booking')
     }
     return
   }
@@ -285,15 +305,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/chat') {
     try {
       const body = await collectBody(req)
+      if (typeof body.message !== 'string' || body.message.trim().length < 2) {
+        sendError(res, 400, 'VALIDATION_ERROR', 'message must be at least 2 characters')
+        return
+      }
+
       const result = await generateChatReply(body.message)
       json(res, 200, result)
     } catch (error) {
-      json(res, 400, { error: error.message || 'Failed to process chat' })
+      sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to process chat')
     }
     return
   }
 
-  json(res, 404, { error: 'Not found' })
+  sendError(res, 404, 'NOT_FOUND', 'Not found')
 })
 
 server.listen(port, () => {
