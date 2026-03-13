@@ -2,6 +2,7 @@ import http from 'node:http'
 import { clearSessionFromRequest, authenticateAdmin, requireSession } from './auth.mjs'
 import { appendAuditEntry, listAuditEntries } from './audit.mjs'
 import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
+import { buildLineTextReply, getLineConfigMeta, isLineConfigured, parseLineWebhook, verifyLineSignature } from './integrations/line.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
 const port = Number(process.env.PORT || 8787)
@@ -95,7 +96,44 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    json(res, 200, { ok: true, service: 'pulsefit-api', db: getDbMeta(), ai: getAiMeta() })
+    json(res, 200, { ok: true, service: 'pulsefit-api', db: getDbMeta(), ai: getAiMeta(), line: getLineConfigMeta() })
+    return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/integrations/line/webhook') {
+    let rawBody = ''
+    try {
+      rawBody = await new Promise((resolve, reject) => {
+        let raw = ''
+        req.on('data', (chunk) => {
+          raw += chunk
+          if (raw.length > 1_000_000) {
+            reject(new Error('Payload too large'))
+            req.destroy()
+          }
+        })
+        req.on('end', () => resolve(raw || '{}'))
+        req.on('error', reject)
+      })
+
+      if (!isLineConfigured()) {
+        sendError(res, 503, 'LINE_NOT_CONFIGURED', 'LINE integration is not configured yet')
+        return
+      }
+
+      const signature = req.headers['x-line-signature']
+      if (typeof signature !== 'string' || !verifyLineSignature(rawBody, signature)) {
+        sendError(res, 401, 'INVALID_LINE_SIGNATURE', 'LINE signature verification failed')
+        return
+      }
+
+      const body = JSON.parse(rawBody)
+      const events = parseLineWebhook(body)
+      appendAuditEntry({ type: 'line.webhook', actor: 'line', detail: `events=${events.length}` })
+      json(res, 200, { ok: true, received: events.length, sampleReply: buildLineTextReply('已收到 LINE webhook') })
+    } catch (error) {
+      sendError(res, 400, 'INVALID_LINE_WEBHOOK', error.message || 'Failed to process LINE webhook')
+    }
     return
   }
 
