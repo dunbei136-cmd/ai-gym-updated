@@ -141,7 +141,12 @@ const server = http.createServer(async (req, res) => {
         const input = textEvent.text
         let replyText = '你可以直接輸入「我要預約」，我會一步一步幫你收集資料。'
 
-        if (input.includes('預約')) {
+        if (input.includes('取消') || input.includes('重來')) {
+          resetLineSession(textEvent.userId)
+          replyText = '好的，我已經幫你重置流程；如果要重新開始，直接輸入「我要預約」就可以。'
+        } else if (input.includes('停車')) {
+          replyText = '有，示意場館設定為附近有合作停車場與路邊停車格；第一次來建議提早 10 分鐘到。'
+        } else if (input.includes('預約')) {
           upsertLineSession(textEvent.userId, { step: 'ask_name', form: {} })
           replyText = '好的，先幫我你的姓名。'
         } else if (session.step === 'ask_name') {
@@ -164,6 +169,8 @@ const server = http.createServer(async (req, res) => {
         } else if (session.step === 'ask_goal') {
           upsertLineSession(textEvent.userId, { step: 'ask_slot', form: { goal: normalizeLineGoal(input) } })
           replyText = '最後一題：你偏好的時段是平日晚上、平日白天，還是週末上午？'
+        } else if (input.includes('查詢')) {
+          replyText = '如果你要查詢預約，目前可以先提供手機與 Email，後台可以幫你確認；下一步我也會把 LINE 查詢流程補成可直接查。'
         } else if (session.step === 'ask_slot') {
           const finalSession = upsertLineSession(textEvent.userId, {
             step: 'complete',
