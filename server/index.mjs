@@ -1,3 +1,4 @@
+import './env.mjs'
 import http from 'node:http'
 import { clearSessionFromRequest, authenticateAdmin, requireSession } from './auth.mjs'
 import { appendAuditEntry, listAuditEntries } from './audit.mjs'
