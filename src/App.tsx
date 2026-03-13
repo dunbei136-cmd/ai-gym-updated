@@ -523,7 +523,7 @@ function App() {
           content: `已為 ${booking.name} 建立 demo 預約。你現在可以直接到 Booking Lookup 用 ${booking.phone} + ${booking.email} 查詢。`,
         },
       ])
-      setNotice(`已建立 ${booking.name} 的 booking`)
+      setNotice(`已建立 ${booking.name} 的預約資料`)
     } catch {
       setError('建立預約失敗，請稍後再試')
     } finally {
@@ -533,7 +533,7 @@ function App() {
 
   const submitAdminBooking = async () => {
     if (!adminForm.name.trim() || !adminForm.phone.trim() || !adminForm.email.trim()) {
-      setError('Admin 新增 booking 時，姓名、手機與 Email 都要填寫')
+      setError('後台新增預約時，姓名、手機與 Email 都要填寫')
       return
     }
 
@@ -558,9 +558,9 @@ function App() {
         goal: '減脂 / 新手入門',
         preferredSlot: '平日晚上',
       })
-      setNotice(`Admin 已建立 ${booking.name} 的 booking`)
+      setNotice(`後台已建立 ${booking.name} 的預約資料`)
     } catch {
-      setError('Admin 建立 booking 失敗，請稍後再試')
+      setError('後台建立預約失敗，請稍後再試')
     } finally {
       setBusy(false)
     }
@@ -749,7 +749,7 @@ function App() {
       const nextBookings = await api.listBookings()
       setBookings(nextBookings)
       setSelectedBookingKeys([])
-      setNotice(`已批次更新 ${targets.length} 筆 booking 為 ${batchStatus}`)
+      setNotice(`已批次更新 ${targets.length} 筆預約狀態為 ${batchStatus}`)
     } catch {
       setError('批次更新狀態失敗，請稍後再試')
     } finally {
@@ -1391,9 +1391,9 @@ function App() {
             <div className="section-heading compact">
               <div>
                 <p className="section-kicker">Quick Create</p>
-                <h3>後台直接新增 booking</h3>
+                <h3>後台直接新增預約 / 名單</h3>
               </div>
-              <p className="section-note">用 admin 角度快速建立資料，建立後會自動選中這筆 booking。</p>
+              <p className="section-note">用後台角度快速建立資料，建立後會自動選中這筆預約。</p>
             </div>
 
             <fieldset className="control-fieldset" disabled={interactionLocked}>
@@ -1428,7 +1428,7 @@ function App() {
                   </select>
                 </label>
                 <button className="submit-btn admin-create-btn" onClick={() => void submitAdminBooking()} disabled={busy}>
-                  {busy ? '建立中...' : '新增 booking'}
+                  {busy ? '建立中...' : '新增預約'}
                 </button>
               </div>
             </fieldset>
@@ -1726,7 +1726,7 @@ function App() {
 
           <div className="booking-table-shell">
             {loadingBookings ? (
-              <div className="admin-loading-card">booking 資料載入中...</div>
+              <div className="admin-loading-card">預約 / 名單資料載入中...</div>
             ) : filteredBookings.length > 0 ? (
               <>
                 <div className="booking-table-meta">
@@ -1912,7 +1912,7 @@ function App() {
             <div className="detail-panel">
               <div className="detail-panel-header">
                 <div>
-                  <p className="section-kicker">Booking Detail</p>
+                  <p className="section-kicker">Booking / CRM Detail</p>
                   <h3>{detailForm.name || selectedBooking.name}</h3>
                   {hasUnsavedDetailChanges ? <p className="detail-dirty-hint">有未儲存變更</p> : null}
                   <p className="detail-shortcut-hint">快捷鍵：Ctrl/Cmd + S 儲存，Esc 關閉</p>
@@ -2184,7 +2184,7 @@ function App() {
                   onClick={() => void deleteSelectedBooking()}
                   disabled={detailSaving || detailDeleting}
                 >
-                  {detailDeleting ? '刪除中...' : '刪除 booking'}
+                  {detailDeleting ? '刪除中...' : '刪除預約'}
                 </button>
                 <button
                   className="secondary-btn detail-action-btn"
@@ -2223,7 +2223,7 @@ function App() {
       <footer className="footer glass-card">
         <div>
           <strong>PulseFit AI</strong>
-          <p>Deployable front-end MVP for gym concierge, FAQ, booking lookup, lead capture, and CRM follow-up.</p>
+          <p>Deployable front-end MVP for gym concierge, booking lookup, lead capture, and CRM follow-up.</p>
         </div>
         <div className="footer-meta">
           <span>API mode: {apiModeLabel}</span>
