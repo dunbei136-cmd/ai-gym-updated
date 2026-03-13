@@ -9,6 +9,7 @@
     "dev:server": "node server/index.mjs",
     "dev:stack": "node scripts/dev-stack.mjs",
     "smoke:api": "node scripts/smoke-api.mjs",
+    "smoke:auth": "node scripts/auth-smoke.mjs",
     "qa:live": "node scripts/live-check.mjs",
     "qa:lead": "node scripts/lead-flow-check.mjs",
     "qa:mobile": "node scripts/mobile-check.mjs",

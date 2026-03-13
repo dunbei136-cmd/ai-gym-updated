@@ -447,7 +447,8 @@ function App() {
       detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt ||
       JSON.stringify(detailForm.activityLog) !== JSON.stringify(selectedBooking.activityLog))
   const interactionLocked = busy || detailSaving || detailDeleting || !!dragBookingKey || authLoading
-  const detailFormLocked = detailSaving || detailDeleting
+  const adminWriteLocked = interactionLocked || !authSession
+  const detailFormLocked = detailSaving || detailDeleting || !authSession
   const busyLabel = detailSaving
     ? '正在儲存 booking / CRM 明細...'
     : detailDeleting
@@ -1469,6 +1470,7 @@ function App() {
               <p className="section-note">目前已啟用後台寫入權限，可更新狀態、CRM 與刪除資料。</p>
             ) : (
               <>
+                <p className="section-note">目前為唯讀瀏覽模式；登入後才可進行新增、更新與刪除。</p>
                 <p className="section-note">先登入後台帳號，才能執行狀態更新、CRM 編輯與刪除操作。</p>
                 <div className="admin-create-grid">
                   <label>
@@ -1501,7 +1503,7 @@ function App() {
               <p className="section-note">用後台角度快速建立資料，建立後會自動選中這筆預約。</p>
             </div>
 
-            <fieldset className="control-fieldset" disabled={interactionLocked}>
+            <fieldset className="control-fieldset" disabled={adminWriteLocked}>
               <div className="admin-create-grid">
                 <label>
                   姓名
@@ -1657,7 +1659,7 @@ function App() {
             ))}
           </div>
 
-          <fieldset className="control-fieldset" disabled={interactionLocked}>
+          <fieldset className="control-fieldset" disabled={adminWriteLocked}>
             <div className="admin-toolbar admin-toolbar-crm">
               <input
                 value={adminQuery}
@@ -1771,7 +1773,7 @@ function App() {
             </button>
           </div>
 
-          <fieldset className="control-fieldset" disabled={interactionLocked}>
+          <fieldset className="control-fieldset" disabled={adminWriteLocked}>
             <div className="batch-toolbar">
               <label className="batch-select-label">
                 <input type="checkbox" checked={allOnPageSelected} onChange={toggleSelectCurrentPage} />
