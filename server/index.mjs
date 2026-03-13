@@ -143,9 +143,12 @@ const server = http.createServer(async (req, res) => {
 
         if (input.includes('取消') || input.includes('重來')) {
           resetLineSession(textEvent.userId)
-          replyText = '沒問題，我先幫你把這輪流程清掉；你等等直接再說一次「我要預約」就好。'
+          replyText = '沒問題，我先幫你把這輪流程清掉；你等等直接再說一次「我要預約」或「我要查詢」就好。'
         } else if (input.includes('停車')) {
           replyText = '有，附近有合作停車場跟路邊停車格；如果你是第一次來，我會建議提早 10 分鐘到，找車位跟報到都比較從容。'
+        } else if (input.includes('查詢')) {
+          upsertLineSession(textEvent.userId, { step: 'ask_lookup_phone', form: {} })
+          replyText = '可以，我幫你查。先把預約時留的手機號碼給我。'
         } else if (input.includes('預約')) {
           upsertLineSession(textEvent.userId, { step: 'ask_name', form: {} })
           replyText = '好，我先幫你安排。先跟我說你的姓名就可以。'
@@ -169,8 +172,24 @@ const server = http.createServer(async (req, res) => {
         } else if (session.step === 'ask_goal') {
           upsertLineSession(textEvent.userId, { step: 'ask_slot', form: { goal: normalizeLineGoal(input) } })
           replyText = '最後一題：你偏好的時段是平日晚上、平日白天，還是週末上午？'
-        } else if (input.includes('查詢')) {
-          replyText = '如果你要查詢預約，目前可以先提供手機與 Email，後台可以幫你確認；下一步我也會把 LINE 查詢流程補成可直接查。'
+        } else if (session.step === 'ask_lookup_phone') {
+          if (!isLikelyPhone(input)) {
+            replyText = '我這邊看手機格式有點怪，麻煩你再傳一次預約時留的手機號碼。'
+          } else {
+            upsertLineSession(textEvent.userId, { step: 'ask_lookup_email', form: { phone: input.replace(/[^\\d]/g, '') } })
+            replyText = '收到，接著把預約時留的 Email 給我。'
+          }
+        } else if (session.step === 'ask_lookup_email') {
+          if (!isLikelyEmail(input)) {
+            replyText = 'Email 格式看起來不太對，麻煩你再傳一次。'
+          } else {
+            const lookupEmail = input.trim().toLowerCase()
+            const found = lookupBooking(session.form?.phone || '', lookupEmail)
+            resetLineSession(textEvent.userId)
+            replyText = found
+              ? `我查到了：${found.name} 目前預約 ${found.date}，狀態是「${found.status}」，名單階段是「${found.stage}」。`
+              : '我這邊暫時找不到這筆預約，麻煩你再確認手機與 Email 是否和當初填寫的一樣。'
+          }
         } else if (session.step === 'ask_slot') {
           const finalSession = upsertLineSession(textEvent.userId, {
             step: 'complete',
