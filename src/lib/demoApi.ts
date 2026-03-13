@@ -1,0 +1,180 @@
+import { seedBookingRecords, storageKey } from '../data/content'
+import type { BookingRecord, GymApi, LeadForm } from '../types'
+
+function readStoredBookings() {
+  if (typeof window === 'undefined') return [] as BookingRecord[]
+
+  try {
+    const raw = window.localStorage.getItem(storageKey)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as BookingRecord[]) : []
+  } catch {
+    return []
+  }
+}
+
+function writeStoredBookings(bookings: BookingRecord[]) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(storageKey, JSON.stringify(bookings))
+}
+
+function resolveProgram(goal: string) {
+  if (goal === '增肌 / 重訓規劃') {
+    return { className: '增肌訓練諮詢', trainer: 'Coach Vera' }
+  }
+
+  if (goal === '姿勢矯正 / 體態改善') {
+    return { className: '體態矯正評估', trainer: 'Coach Max' }
+  }
+
+  if (goal === '團體課 / 體驗參觀') {
+    return { className: '團體課體驗', trainer: 'Coach Luna' }
+  }
+
+  return { className: '新手燃脂體驗課', trainer: 'Coach Aiden' }
+}
+
+function resolveSlot(preferredSlot: string) {
+  if (preferredSlot === '平日白天') return '2026/03/20 14:00'
+  if (preferredSlot === '週末上午') return '2026/03/21 11:00'
+  return '2026/03/20 19:30'
+}
+
+function buildAssistantReply(message: string) {
+  const normalized = message.trim().toLowerCase()
+
+  if (normalized.includes('會員')) {
+    return '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；若你還沒上過，建議先從體驗課開始。'
+  }
+
+  if (normalized.includes('新手') || normalized.includes('推薦') || normalized.includes('課')) {
+    return '如果你是新手，我會優先推薦「新手燃脂體驗課」或「體態評估 + 教練諮詢」，先確認目標再安排適合的教練。'
+  }
+
+  if (normalized.includes('查詢') || normalized.includes('預約') || normalized.includes('booking')) {
+    return '可以，你可以直接到 Booking Lookup 輸入手機號碼與 Email，查詢預設 demo 或剛建立的新預約。'
+  }
+
+  return '我是健身房 AI 接待助理，目前可協助 FAQ、方案介紹、體驗課導流與預約查詢。'
+}
+
+export const demoApi: GymApi = {
+  async listBookings() {
+    return [...readStoredBookings(), ...seedBookingRecords]
+  },
+
+  async createBooking(payload: LeadForm) {
+    const program = resolveProgram(payload.goal)
+
+    const booking: BookingRecord = {
+      name: payload.name.trim(),
+      phone: payload.phone.trim(),
+      email: payload.email.trim().toLowerCase(),
+      className: program.className,
+      trainer: program.trainer,
+      date: resolveSlot(payload.preferredSlot),
+      status: '待回覆',
+    }
+
+    const next = [
+      booking,
+      ...readStoredBookings().filter(
+        (item) => !(item.phone === booking.phone && item.email === booking.email),
+      ),
+    ]
+
+    writeStoredBookings(next)
+    return booking
+  },
+
+  async lookupBooking(phone: string, email: string) {
+    const normalizedPhone = phone.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+    const records = [...readStoredBookings(), ...seedBookingRecords]
+
+    return (
+      records.find(
+        (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
+      ) ?? null
+    )
+  },
+
+  async updateBookingStatus(phone: string, email: string, status: BookingRecord['status']) {
+    const normalizedPhone = phone.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+    const stored = readStoredBookings()
+    const existing =
+      stored.find(
+        (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
+      ) ??
+      seedBookingRecords.find(
+        (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
+      )
+
+    const updated: BookingRecord = existing
+      ? { ...existing, status }
+      : {
+          name: '',
+          phone: normalizedPhone,
+          email: normalizedEmail,
+          className: '',
+          trainer: '',
+          date: '',
+          status,
+        }
+
+    const next = [
+      updated,
+      ...stored.filter(
+        (item) => !(item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail),
+      ),
+    ]
+
+    writeStoredBookings(next)
+    return updated
+  },
+
+  async updateBookingDetails(
+    phone: string,
+    email: string,
+    patch: Pick<BookingRecord, 'className' | 'trainer' | 'date'>,
+  ) {
+    const normalizedPhone = phone.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+    const stored = readStoredBookings()
+    const existing =
+      stored.find(
+        (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
+      ) ??
+      seedBookingRecords.find(
+        (item) => item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail,
+      )
+
+    const updated: BookingRecord = existing
+      ? { ...existing, ...patch }
+      : {
+          name: '',
+          phone: normalizedPhone,
+          email: normalizedEmail,
+          className: patch.className,
+          trainer: patch.trainer,
+          date: patch.date,
+          status: '待回覆',
+        }
+
+    const next = [
+      updated,
+      ...stored.filter(
+        (item) => !(item.phone === normalizedPhone && item.email.toLowerCase() === normalizedEmail),
+      ),
+    ]
+
+    writeStoredBookings(next)
+    return updated
+  },
+
+  async sendChat(message: string) {
+    return buildAssistantReply(message)
+  },
+}
