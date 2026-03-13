@@ -3,7 +3,8 @@ import http from 'node:http'
 import { clearSessionFromRequest, authenticateAdmin, requireSession } from './auth.mjs'
 import { appendAuditEntry, listAuditEntries } from './audit.mjs'
 import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
-import { buildLineTextReply, getLineConfigMeta, isLineConfigured, parseLineWebhook, verifyLineSignature } from './integrations/line.mjs'
+import { buildLineTextReply, extractLineTextEvent, getLineConfigMeta, isLineConfigured, parseLineWebhook, sendLineReply, verifyLineSignature } from './integrations/line.mjs'
+import { isLikelyEmail, isLikelyPhone, normalizeLineGoal, normalizeLineSlot, resetLineSession, upsertLineSession } from './line-session.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
 const port = Number(process.env.PORT || 8787)
@@ -131,7 +132,70 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(rawBody)
       const events = parseLineWebhook(body)
       appendAuditEntry({ type: 'line.webhook', actor: 'line', detail: `events=${events.length}` })
-      json(res, 200, { ok: true, received: events.length, sampleReply: buildLineTextReply('已收到 LINE webhook') })
+
+      for (const event of events) {
+        const textEvent = extractLineTextEvent(event)
+        if (!textEvent) continue
+
+        const session = upsertLineSession(textEvent.userId, {})
+        const input = textEvent.text
+        let replyText = '你可以直接輸入「我要預約」，我會一步一步幫你收集資料。'
+
+        if (input.includes('預約')) {
+          upsertLineSession(textEvent.userId, { step: 'ask_name', form: {} })
+          replyText = '好的，先幫我你的姓名。'
+        } else if (session.step === 'ask_name') {
+          upsertLineSession(textEvent.userId, { step: 'ask_phone', form: { name: input } })
+          replyText = '收到，接下來請提供你的手機號碼。'
+        } else if (session.step === 'ask_phone') {
+          if (!isLikelyPhone(input)) {
+            replyText = '手機格式看起來不太對，請再輸入一次手機號碼。'
+          } else {
+            upsertLineSession(textEvent.userId, { step: 'ask_email', form: { phone: input.replace(/[^\d]/g, '') } })
+            replyText = '好，接著請提供 Email。'
+          }
+        } else if (session.step === 'ask_email') {
+          if (!isLikelyEmail(input)) {
+            replyText = 'Email 格式看起來不太對，請再輸入一次。'
+          } else {
+            upsertLineSession(textEvent.userId, { step: 'ask_goal', form: { email: input.trim().toLowerCase() } })
+            replyText = '你這次主要目標是減脂、增肌、體態調整，還是想先參觀團課呢？'
+          }
+        } else if (session.step === 'ask_goal') {
+          upsertLineSession(textEvent.userId, { step: 'ask_slot', form: { goal: normalizeLineGoal(input) } })
+          replyText = '最後一題：你偏好的時段是平日晚上、平日白天，還是週末上午？'
+        } else if (session.step === 'ask_slot') {
+          const finalSession = upsertLineSession(textEvent.userId, {
+            step: 'complete',
+            form: { preferredSlot: normalizeLineSlot(input) },
+          })
+          const form = finalSession.form
+          const now = new Date().toISOString()
+          const program = resolveProgram(form.goal)
+          const booking = upsertBooking({
+            name: form.name || 'LINE 用戶',
+            phone: form.phone || '',
+            email: form.email || `${textEvent.userId}@line.local`,
+            className: program.className,
+            trainer: program.trainer,
+            date: resolveSlot(form.preferredSlot || '平日晚上'),
+            status: '待回覆',
+            notes: '來自 LINE webhook 對話預約',
+            stage: '新名單',
+            source: 'LINE',
+            assignee: '未指派',
+            nextFollowUpAt: '',
+            activityLog: [`${now.slice(0, 16).replace('T', ' ')} LINE 建立名單`],
+          })
+          appendAuditEntry({ type: 'line.booking.create', actor: textEvent.userId, detail: `${booking.name} / ${booking.phone}` })
+          resetLineSession(textEvent.userId)
+          replyText = `已收到你的預約需求，姓名 ${booking.name}，我們會以 ${booking.phone} / ${booking.email} 幫你建立資料，稍後由教練或客服跟你確認。`
+        }
+
+        await sendLineReply(textEvent.replyToken, [buildLineTextReply(replyText)])
+      }
+
+      json(res, 200, { ok: true, received: events.length })
     } catch (error) {
       sendError(res, 400, 'INVALID_LINE_WEBHOOK', error.message || 'Failed to process LINE webhook')
     }

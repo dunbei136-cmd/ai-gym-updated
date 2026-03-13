@@ -23,6 +23,36 @@ export function buildLineTextReply(text) {
   }
 }
 
+export function extractLineTextEvent(event) {
+  if (!event || event.type !== 'message') return null
+  if (!event.message || event.message.type !== 'text') return null
+  return {
+    replyToken: event.replyToken,
+    userId: event.source?.userId || 'unknown',
+    text: String(event.message.text || '').trim(),
+  }
+}
+
+export async function sendLineReply(replyToken, messages) {
+  if (!isLineConfigured()) {
+    throw new Error('LINE is not configured')
+  }
+
+  const response = await fetch('https://api.line.me/v2/bot/message/reply', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+    },
+    body: JSON.stringify({ replyToken, messages }),
+  })
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(detail || `LINE reply failed: ${response.status}`)
+  }
+}
+
 export function getLineConfigMeta() {
   return {
     configured: isLineConfigured(),
