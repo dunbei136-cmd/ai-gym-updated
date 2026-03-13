@@ -206,8 +206,20 @@ function buildDetailChangeEntries(existing: BookingRecord | undefined, patch: Bo
 function buildAssistantReply(message: string) {
   const normalized = message.trim().toLowerCase()
 
-  if (normalized.includes('會員')) {
-    return '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；若你還沒上過，建議先從體驗課開始。'
+  if (normalized.includes('停車')) {
+    return '有，示意場館設定為附近有合作停車場與路邊停車格；如果你是第一次來，建議提早 10 分鐘到，找車位跟報到會比較從容。'
+  }
+
+  if (normalized.includes('明天') && (normalized.includes('課') || normalized.includes('團課') || normalized.includes('課程'))) {
+    return '明天目前可安排的示意課程包含「新手燃脂體驗課」、「增肌訓練諮詢」與「團體課體驗」；如果你告訴我是想減脂、增肌，還是先體驗看看，我可以直接幫你縮小到最適合的一堂。'
+  }
+
+  if (normalized.includes('高手') || normalized.includes('進階') || normalized.includes('有重訓經驗')) {
+    return '如果你已經有訓練底子，我會優先推薦「增肌訓練諮詢」或進階強度的一對一教練課，先看你的訓練年資、目前卡關點，再安排比較合適。'
+  }
+
+  if (normalized.includes('會員') || normalized.includes('費用') || normalized.includes('價格')) {
+    return '目前會先推薦體驗課、月會籍、一對一教練課三種路徑；如果你還沒上過，通常會建議先從體驗課開始。'
   }
 
   if (normalized.includes('新手') || normalized.includes('推薦') || normalized.includes('課')) {
@@ -218,7 +230,7 @@ function buildAssistantReply(message: string) {
     return '可以，你可以直接到 Booking Lookup 輸入手機號碼與 Email，查詢預設 demo 或剛建立的新預約。'
   }
 
-  return '我是健身房 AI 接待助理，目前可協助 FAQ、方案介紹、體驗課導流與預約查詢。'
+  return '我是健身房 AI 接待助理，目前可協助 FAQ、方案介紹、停車資訊、課程建議、體驗課導流與預約查詢。'
 }
 
 export const demoApi: GymApi = {

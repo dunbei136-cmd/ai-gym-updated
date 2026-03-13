@@ -1,5 +1,6 @@
 import http from 'node:http'
 import { clearSessionFromRequest, authenticateAdmin, requireSession } from './auth.mjs'
+import { appendAuditEntry, listAuditEntries } from './audit.mjs'
 import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
@@ -121,6 +122,7 @@ const server = http.createServer(async (req, res) => {
         return
       }
 
+      appendAuditEntry({ type: 'auth.login', actor: username, detail: 'Admin login success' })
       json(res, 200, { ok: true, token: result.token, session: result.session })
     } catch (error) {
       sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to login')
@@ -129,8 +131,21 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/auth/logout') {
+    const session = requireSession(req)
     clearSessionFromRequest(req)
+    if (session) {
+      appendAuditEntry({ type: 'auth.logout', actor: session.username, detail: 'Admin logout' })
+    }
     json(res, 200, { ok: true })
+    return
+  }
+
+  if (req.method === 'GET' && url.pathname === '/audit/recent') {
+    const session = requireAuthOrRespond(req, res)
+    if (!session) return
+
+    const limit = Number(url.searchParams.get('limit') || 50)
+    json(res, 200, { ok: true, items: listAuditEntries(limit) })
     return
   }
 
@@ -181,6 +196,7 @@ const server = http.createServer(async (req, res) => {
         activityLog: [`${now.slice(0, 16).replace('T', ' ')} 建立名單`],
       })
 
+      appendAuditEntry({ type: 'booking.create', actor: 'public', detail: `${booking.name} / ${booking.email}` })
       json(res, 201, booking)
     } catch (error) {
       sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to create booking')
@@ -189,7 +205,8 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/bookings/status') {
-    if (!requireAuthOrRespond(req, res)) return
+    const session = requireAuthOrRespond(req, res)
+    if (!session) return
 
     try {
       const body = await collectBody(req)
@@ -211,6 +228,7 @@ const server = http.createServer(async (req, res) => {
         return
       }
 
+      appendAuditEntry({ type: 'booking.status', actor: session.username, detail: `${updated.name} -> ${updated.status}` })
       json(res, 200, updated)
     } catch (error) {
       sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to update booking status')
