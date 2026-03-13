@@ -89,6 +89,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 - `docs/CURRENT_STATUS.md`
 - `docs/PRODUCTION_ROADMAP.md`
 - `docs/MILESTONE_1_PLAN.md`
+- `docs/SLICE_A_IMPLEMENTATION_PLAN.md`
 - `docs/API_INTEGRATION.md`
 - `docs/DEPLOYMENT.md`
 - `docs/PROJECT_PLAN.md`
