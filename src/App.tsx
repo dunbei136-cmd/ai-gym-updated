@@ -237,6 +237,12 @@ function App() {
   }, [lookupEmail, lookupPhone])
 
   useEffect(() => {
+    if (!chatCooldownUntil || chatCooldownUntil <= Date.now()) return
+    const timer = window.setTimeout(() => setChatCooldownUntil(0), chatCooldownUntil - Date.now())
+    return () => window.clearTimeout(timer)
+  }, [chatCooldownUntil])
+
+  useEffect(() => {
     if (!selectedBooking) return
 
     const refreshed = bookings.find(
