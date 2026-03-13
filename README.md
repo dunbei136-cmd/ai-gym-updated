@@ -87,6 +87,7 @@ OPENAI_BASE_URL=https://api.openai.com/v1
 ## 文件
 
 - `docs/CURRENT_STATUS.md`
+- `docs/PRODUCTION_ROADMAP.md`
 - `docs/API_INTEGRATION.md`
 - `docs/DEPLOYMENT.md`
 - `docs/PROJECT_PLAN.md`
