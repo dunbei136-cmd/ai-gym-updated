@@ -1,72 +1,125 @@
 import { demoApi } from './demoApi'
-import type { GymApi } from '../types'
+import type { AuthCredentials, GymApi } from '../types'
 
 const mode = import.meta.env.VITE_API_MODE ?? 'demo'
 const baseUrl = import.meta.env.VITE_API_BASE_URL
+const authStorageKey = 'pulsefit-admin-token'
+
+function readAuthToken() {
+  if (typeof window === 'undefined') return ''
+  return window.localStorage.getItem(authStorageKey) ?? ''
+}
+
+function writeAuthToken(token: string) {
+  if (typeof window === 'undefined') return
+  if (!token) {
+    window.localStorage.removeItem(authStorageKey)
+    return
+  }
+  window.localStorage.setItem(authStorageKey, token)
+}
 
 function createHttpApi(): GymApi {
+  const fetchJson = async (path: string, init?: RequestInit) => {
+    const headers = new Headers(init?.headers)
+    const token = readAuthToken()
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
+
+    const response = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+    })
+
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw new Error(data?.error ?? data?.message ?? `Request failed: ${response.status}`)
+    }
+    return data
+  }
+
   return {
+    async getSession() {
+      try {
+        const data = await fetchJson('/auth/session')
+        return data.session ?? null
+      } catch {
+        writeAuthToken('')
+        return null
+      }
+    },
+
+    async login(credentials: AuthCredentials) {
+      const data = await fetchJson('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+      })
+      writeAuthToken(data.token ?? '')
+      return data.session
+    },
+
+    async logout() {
+      try {
+        await fetchJson('/auth/logout', { method: 'POST' })
+      } finally {
+        writeAuthToken('')
+      }
+    },
+
     async listBookings() {
-      const response = await fetch(`${baseUrl}/bookings`)
-      if (!response.ok) throw new Error('Failed to list bookings')
-      return response.json()
+      return fetchJson('/bookings')
     },
 
     async createBooking(payload) {
-      const response = await fetch(`${baseUrl}/bookings`, {
+      return fetchJson('/bookings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (!response.ok) throw new Error('Failed to create booking')
-      return response.json()
     },
 
     async lookupBooking(phone, email) {
       const query = new URLSearchParams({ phone, email })
-      const response = await fetch(`${baseUrl}/bookings/lookup?${query.toString()}`)
-      if (response.status === 404) return null
-      if (!response.ok) throw new Error('Failed to lookup booking')
-      return response.json()
+      try {
+        return await fetchJson(`/bookings/lookup?${query.toString()}`)
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('404')) return null
+        throw error
+      }
     },
 
     async updateBookingStatus(phone, email, status) {
-      const response = await fetch(`${baseUrl}/bookings/status`, {
+      return fetchJson('/bookings/status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, email, status }),
       })
-      if (!response.ok) throw new Error('Failed to update booking status')
-      return response.json()
     },
 
     async updateBookingDetails(phone, email, patch) {
-      const response = await fetch(`${baseUrl}/bookings/details`, {
+      return fetchJson('/bookings/details', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, email, ...patch }),
       })
-      if (!response.ok) throw new Error('Failed to update booking details')
-      return response.json()
     },
 
     async deleteBooking(phone, email) {
-      const response = await fetch(`${baseUrl}/bookings`, {
+      await fetchJson('/bookings', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone, email }),
       })
-      if (!response.ok) throw new Error('Failed to delete booking')
     },
 
     async sendChat(message) {
-      const response = await fetch(`${baseUrl}/chat`, {
+      const data = await fetchJson('/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
       })
-      if (!response.ok) throw new Error('Failed to send chat message')
-      const data = await response.json()
       return data.reply as string
     },
   }

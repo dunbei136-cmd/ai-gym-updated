@@ -2,7 +2,7 @@ import './App.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { faqItems, plans, quickReplies, testimonials } from './data/content'
 import { api, apiModeLabel } from './lib/api'
-import type { BookingDetailPatch, BookingRecord, BookingStatus, ChatMessage, LeadForm, LeadSource, LeadStage } from './types'
+import type { AuthSession, BookingDetailPatch, BookingRecord, BookingStatus, ChatMessage, LeadForm, LeadSource, LeadStage } from './types'
 
 const stageOptions: LeadStage[] = ['新名單', '已聯繫', '已預約體驗', '已成交', '流失']
 const sourceOptions: LeadSource[] = ['網站表單', 'AI 聊天', 'LINE', '電話', 'Walk-in']
@@ -151,6 +151,11 @@ function App() {
     preferredSlot: '平日晚上',
   })
   const [leadSubmitted, setLeadSubmitted] = useState<BookingRecord | null>(null)
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [authBusy, setAuthBusy] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [authForm, setAuthForm] = useState({ username: 'admin', password: 'pulsefit-demo' })
   const [adminForm, setAdminForm] = useState<LeadForm>({
     name: '',
     phone: '',
@@ -205,6 +210,9 @@ function App() {
   const [dragStageTarget, setDragStageTarget] = useState<LeadStage | ''>('')
 
   useEffect(() => {
+    setAuthLoading(true)
+    void api.getSession().then(setAuthSession).finally(() => setAuthLoading(false))
+
     setLoadingBookings(true)
     void api
       .listBookings()
@@ -432,7 +440,7 @@ function App() {
       detailForm.assignee !== selectedBooking.assignee ||
       detailForm.nextFollowUpAt !== selectedBooking.nextFollowUpAt ||
       JSON.stringify(detailForm.activityLog) !== JSON.stringify(selectedBooking.activityLog))
-  const interactionLocked = busy || detailSaving || detailDeleting || !!dragBookingKey
+  const interactionLocked = busy || detailSaving || detailDeleting || !!dragBookingKey || authLoading
   const detailFormLocked = detailSaving || detailDeleting
   const busyLabel = detailSaving
     ? '正在儲存 booking / CRM 明細...'
@@ -498,6 +506,45 @@ function App() {
     setAdminForm((prev) => ({ ...prev, [key]: value }))
   }
 
+  const ensureAdminSession = () => {
+    if (authSession) return true
+    setAuthError('請先登入後台帳號')
+    setError('請先登入後台帳號')
+    return false
+  }
+
+  const submitAdminLogin = async () => {
+    if (!authForm.username.trim() || !authForm.password) {
+      setAuthError('請輸入帳號與密碼')
+      return
+    }
+
+    setAuthBusy(true)
+    setAuthError('')
+    try {
+      const session = await api.login({ username: authForm.username.trim(), password: authForm.password })
+      setAuthSession(session)
+      setNotice(`已登入後台：${session.username}`)
+      setError('')
+    } catch (loginError) {
+      setAuthError(loginError instanceof Error ? loginError.message : '登入失敗，請稍後再試')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
+  const logoutAdmin = async () => {
+    setAuthBusy(true)
+    try {
+      await api.logout()
+      setAuthSession(null)
+      setAuthForm((prev) => ({ ...prev, password: 'pulsefit-demo' }))
+      setNotice('已登出後台帳號')
+    } finally {
+      setAuthBusy(false)
+    }
+  }
+
   const submitLead = async () => {
     if (!form.name.trim() || !form.phone.trim() || !form.email.trim()) {
       setError('請至少填寫姓名、手機與 Email')
@@ -532,6 +579,8 @@ function App() {
   }
 
   const submitAdminBooking = async () => {
+    if (!ensureAdminSession()) return
+
     if (!adminForm.name.trim() || !adminForm.phone.trim() || !adminForm.email.trim()) {
       setError('後台新增預約時，姓名、手機與 Email 都要填寫')
       return
@@ -709,6 +758,7 @@ function App() {
     email: string,
     status: BookingStatus,
   ) => {
+    if (!ensureAdminSession()) return
     const key = `${phone}-${email}`
     setUpdatingKey(key)
     setError('')
@@ -732,6 +782,8 @@ function App() {
   }
 
   const updateSelectedBookingsStatus = async () => {
+    if (!ensureAdminSession()) return
+
     if (selectedBookingKeys.length === 0) {
       setError('請先勾選至少一筆 booking')
       return
@@ -758,6 +810,8 @@ function App() {
   }
 
   const updateSelectedBookingsCrm = async () => {
+    if (!ensureAdminSession()) return
+
     if (selectedBookingKeys.length === 0) {
       setError('請先勾選至少一筆 booking')
       return
@@ -804,6 +858,8 @@ function App() {
   }
 
   const moveBookingToStage = async (booking: BookingRecord, stage: LeadStage) => {
+    if (!ensureAdminSession()) return
+
     if (booking.stage === stage) {
       setDragBookingKey('')
       setDragStageTarget('')
@@ -848,6 +904,8 @@ function App() {
   }
 
   const deleteSelectedBookings = async () => {
+    if (!ensureAdminSession()) return
+
     if (selectedBookingKeys.length === 0) {
       setError('請先勾選至少一筆 booking')
       return
@@ -947,6 +1005,7 @@ function App() {
 
   const saveBookingDetails = useCallback(async () => {
     if (!selectedBooking) return
+    if (!ensureAdminSession()) return
 
     if (
       !detailForm.name.trim() ||
@@ -993,6 +1052,7 @@ function App() {
 
   const deleteSelectedBooking = async () => {
     if (!selectedBooking) return
+    if (!ensureAdminSession()) return
 
     const confirmed = window.confirm(`確定要刪除 ${selectedBooking.name} 的 booking 嗎？`)
     if (!confirmed) return
@@ -1386,6 +1446,45 @@ function App() {
           {error ? <p className="error-text admin-feedback">{error}</p> : null}
           {notice ? <p className="notice-text admin-feedback">{notice}</p> : null}
           {busyLabel ? <p className="admin-feedback admin-feedback-info">{busyLabel}</p> : null}
+
+          <div className="admin-create-panel">
+            <div className="section-heading compact">
+              <div>
+                <p className="section-kicker">Admin Access</p>
+                <h3>{authSession ? `已登入：${authSession.username}` : '登入後台'}</h3>
+              </div>
+              {authSession ? (
+                <button className="secondary-btn" onClick={() => void logoutAdmin()} disabled={authBusy}>
+                  {authBusy ? '處理中...' : '登出'}
+                </button>
+              ) : null}
+            </div>
+            {authSession ? (
+              <p className="section-note">目前已啟用後台寫入權限，可更新狀態、CRM 與刪除資料。</p>
+            ) : (
+              <>
+                <p className="section-note">先登入後台帳號，才能執行狀態更新、CRM 編輯與刪除操作。</p>
+                <div className="admin-create-grid">
+                  <label>
+                    帳號
+                    <input value={authForm.username} onChange={(event) => setAuthForm((prev) => ({ ...prev, username: event.target.value }))} />
+                  </label>
+                  <label>
+                    密碼
+                    <input type="password" value={authForm.password} onChange={(event) => setAuthForm((prev) => ({ ...prev, password: event.target.value }))} />
+                  </label>
+                  <div className="detail-field">
+                    <span>示範帳密</span>
+                    <strong>admin / pulsefit-demo</strong>
+                  </div>
+                  <button className="submit-btn admin-create-btn" onClick={() => void submitAdminLogin()} disabled={authBusy || authLoading}>
+                    {authBusy ? '登入中...' : '登入後台'}
+                  </button>
+                </div>
+                {authError ? <p className="error-text">{authError}</p> : null}
+              </>
+            )}
+          </div>
 
           <div className="admin-create-panel">
             <div className="section-heading compact">

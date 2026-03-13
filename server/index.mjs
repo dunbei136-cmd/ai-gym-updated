@@ -1,4 +1,5 @@
 import http from 'node:http'
+import { clearSessionFromRequest, authenticateAdmin, requireSession } from './auth.mjs'
 import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDetails, updateBookingStatus, upsertBooking } from './db.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
 
@@ -8,7 +9,7 @@ function json(res, status, data) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
   })
   res.end(JSON.stringify(data))
@@ -63,7 +64,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
     })
     res.end()
@@ -72,6 +73,47 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/health') {
     json(res, 200, { ok: true, service: 'pulsefit-api', db: getDbMeta(), ai: getAiMeta() })
+    return
+  }
+
+  if (req.method === 'GET' && url.pathname === '/auth/session') {
+    const session = requireSession(req)
+    if (!session) {
+      json(res, 200, { ok: true, session: null })
+      return
+    }
+
+    json(res, 200, { ok: true, session })
+    return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/auth/login') {
+    try {
+      const body = await collectBody(req)
+      const username = typeof body.username === 'string' ? body.username.trim() : ''
+      const password = typeof body.password === 'string' ? body.password : ''
+
+      if (!username || !password) {
+        json(res, 400, { ok: false, error: 'username and password are required' })
+        return
+      }
+
+      const result = authenticateAdmin(username, password)
+      if (!result) {
+        json(res, 401, { ok: false, error: 'Invalid credentials' })
+        return
+      }
+
+      json(res, 200, { ok: true, token: result.token, session: result.session })
+    } catch (error) {
+      json(res, 400, { ok: false, error: error.message || 'Failed to login' })
+    }
+    return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/auth/logout') {
+    clearSessionFromRequest(req)
+    json(res, 200, { ok: true })
     return
   }
 
@@ -130,6 +172,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/bookings/status') {
+    const session = requireSession(req)
+    if (!session) {
+      json(res, 401, { ok: false, error: 'Unauthorized' })
+      return
+    }
+
     try {
       const body = await collectBody(req)
       const { phone = '', email = '', status = '' } = body
@@ -153,6 +201,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'POST' && url.pathname === '/bookings/details') {
+    const session = requireSession(req)
+    if (!session) {
+      json(res, 401, { ok: false, error: 'Unauthorized' })
+      return
+    }
+
     try {
       const body = await collectBody(req)
       const {
@@ -200,6 +254,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'DELETE' && url.pathname === '/bookings') {
+    const session = requireSession(req)
+    if (!session) {
+      json(res, 401, { ok: false, error: 'Unauthorized' })
+      return
+    }
+
     try {
       const body = await collectBody(req)
       const { phone = '', email = '' } = body

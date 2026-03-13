@@ -35,6 +35,15 @@ export type ChatMessage = {
   content: string
 }
 
+export type AuthSession = {
+  username: string
+}
+
+export type AuthCredentials = {
+  username: string
+  password: string
+}
+
 export type Plan = {
   name: string
   price: string
@@ -57,6 +66,9 @@ export type Testimonial = {
 }
 
 export type GymApi = {
+  getSession: () => Promise<AuthSession | null>
+  login: (credentials: AuthCredentials) => Promise<AuthSession>
+  logout: () => Promise<void>
   listBookings: () => Promise<BookingRecord[]>
   createBooking: (payload: LeadForm) => Promise<BookingRecord>
   lookupBooking: (phone: string, email: string) => Promise<BookingRecord | null>

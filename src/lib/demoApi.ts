@@ -1,5 +1,29 @@
 import { seedBookingRecords, storageKey } from '../data/content'
-import type { BookingDetailPatch, BookingRecord, GymApi, LeadForm, LeadSource, LeadStage } from '../types'
+import type { AuthCredentials, AuthSession, BookingDetailPatch, BookingRecord, GymApi, LeadForm, LeadSource, LeadStage } from '../types'
+
+const authStorageKey = `${storageKey}-auth-session`
+
+function readDemoSession(): AuthSession | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(authStorageKey)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed.username === 'string' ? { username: parsed.username } : null
+  } catch {
+    return null
+  }
+}
+
+function writeDemoSession(session: AuthSession | null) {
+  if (typeof window === 'undefined') return
+  if (!session) {
+    window.localStorage.removeItem(authStorageKey)
+    return
+  }
+  window.localStorage.setItem(authStorageKey, JSON.stringify(session))
+}
 
 function readStoredBookings() {
   if (typeof window === 'undefined') return [] as BookingRecord[]
@@ -198,6 +222,24 @@ function buildAssistantReply(message: string) {
 }
 
 export const demoApi: GymApi = {
+  async getSession() {
+    return readDemoSession()
+  },
+
+  async login(credentials: AuthCredentials) {
+    if (credentials.username.trim() !== 'admin' || credentials.password !== 'pulsefit-demo') {
+      throw new Error('帳號或密碼錯誤')
+    }
+
+    const session = { username: 'admin' }
+    writeDemoSession(session)
+    return session
+  },
+
+  async logout() {
+    writeDemoSession(null)
+  },
+
   async listBookings() {
     return listDemoBookings()
   },
