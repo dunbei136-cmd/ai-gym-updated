@@ -34,7 +34,12 @@ function createHttpApi(): GymApi {
 
     const data = await response.json().catch(() => null)
     if (!response.ok) {
-      throw new Error(data?.error ?? data?.message ?? `Request failed: ${response.status}`)
+      const errorMessage =
+        data?.error?.message ??
+        data?.error ??
+        data?.message ??
+        `Request failed: ${response.status}`
+      throw new Error(errorMessage)
     }
     return data
   }
@@ -82,12 +87,13 @@ function createHttpApi(): GymApi {
 
     async lookupBooking(phone, email) {
       const query = new URLSearchParams({ phone, email })
-      try {
-        return await fetchJson(`/bookings/lookup?${query.toString()}`)
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('404')) return null
-        throw error
+      const response = await fetch(`${baseUrl}/bookings/lookup?${query.toString()}`)
+      if (response.status === 404) return null
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(data?.error?.message ?? data?.error ?? data?.message ?? `Request failed: ${response.status}`)
       }
+      return data
     },
 
     async updateBookingStatus(phone, email, status) {
