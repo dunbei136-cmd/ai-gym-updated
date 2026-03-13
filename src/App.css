@@ -598,6 +598,11 @@ a {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.detail-help {
+  color: #8fa4d4;
+  font-size: 0.8rem;
+}
+
 .detail-actions {
   margin-top: 16px;
   display: flex;

@@ -1,5 +1,5 @@
 import { seedBookingRecords, storageKey } from '../data/content'
-import type { BookingRecord, GymApi, LeadForm } from '../types'
+import type { BookingDetailPatch, BookingRecord, GymApi, LeadForm } from '../types'
 
 function readStoredBookings() {
   if (typeof window === 'undefined') return [] as BookingRecord[]
@@ -138,7 +138,7 @@ export const demoApi: GymApi = {
   async updateBookingDetails(
     phone: string,
     email: string,
-    patch: Pick<BookingRecord, 'className' | 'trainer' | 'date'>,
+    patch: BookingDetailPatch,
   ) {
     const normalizedPhone = phone.trim()
     const normalizedEmail = email.trim().toLowerCase()

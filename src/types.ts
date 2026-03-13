@@ -13,12 +13,12 @@ export type BookingRecord = {
   status: '已確認' | '待回覆' | '已完成'
 }
 
+export type BookingDetailPatch = Pick<BookingRecord, 'name' | 'className' | 'trainer' | 'date'>
+
 export type ChatMessage = {
   role: 'assistant' | 'user'
   content: string
 }
-
-export type BookingDetailPatch = Pick<BookingRecord, 'className' | 'trainer' | 'date'>
 
 export type Plan = {
   name: string
@@ -49,7 +49,7 @@ export type GymApi = {
   updateBookingDetails: (
     phone: string,
     email: string,
-    patch: Pick<BookingRecord, 'className' | 'trainer' | 'date'>,
+    patch: BookingDetailPatch,
   ) => Promise<BookingRecord>
   sendChat: (message: string) => Promise<string>
 }

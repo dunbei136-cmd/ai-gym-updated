@@ -169,9 +169,10 @@ export function updateBookingStatus(phone, email, status) {
 export function updateBookingDetails(phone, email, patch) {
   db.prepare(`
     UPDATE bookings
-    SET className = ?, trainer = ?, date = ?, updatedAt = CURRENT_TIMESTAMP
+    SET name = ?, className = ?, trainer = ?, date = ?, updatedAt = CURRENT_TIMESTAMP
     WHERE phone = ? AND lower(email) = lower(?)
   `).run(
+    patch.name,
     patch.className,
     patch.trainer,
     patch.date,

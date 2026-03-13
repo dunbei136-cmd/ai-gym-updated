@@ -4,6 +4,21 @@ import { faqItems, plans, quickReplies, testimonials } from './data/content'
 import { api, apiModeLabel } from './lib/api'
 import type { BookingDetailPatch, BookingRecord, ChatMessage, LeadForm } from './types'
 
+function toDateTimeInputValue(value: string) {
+  const matched = value.match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})$/)
+  if (!matched) return ''
+
+  const [, year, month, day, hour, minute] = matched
+  return `${year}-${month}-${day}T${hour}:${minute}`
+}
+
+function fromDateTimeInputValue(value: string) {
+  if (!value) return ''
+  const [datePart, timePart] = value.split('T')
+  if (!datePart || !timePart) return value
+  return `${datePart.replaceAll('-', '/')} ${timePart}`
+}
+
 function App() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
@@ -32,6 +47,7 @@ function App() {
   const [updatingKey, setUpdatingKey] = useState('')
   const [selectedBooking, setSelectedBooking] = useState<BookingRecord | null>(null)
   const [detailForm, setDetailForm] = useState<BookingDetailPatch>({
+    name: '',
     className: '',
     trainer: '',
     date: '',
@@ -75,6 +91,7 @@ function App() {
     if (!selectedBooking) return
 
     setDetailForm({
+      name: selectedBooking.name,
       className: selectedBooking.className,
       trainer: selectedBooking.trainer,
       date: selectedBooking.date,
@@ -203,8 +220,13 @@ function App() {
   const saveBookingDetails = async () => {
     if (!selectedBooking) return
 
-    if (!detailForm.className.trim() || !detailForm.trainer.trim() || !detailForm.date.trim()) {
-      setError('課程、教練與預約時間都要填寫')
+    if (
+      !detailForm.name.trim() ||
+      !detailForm.className.trim() ||
+      !detailForm.trainer.trim() ||
+      !detailForm.date.trim()
+    ) {
+      setError('姓名、課程、教練與預約時間都要填寫')
       return
     }
 
@@ -213,6 +235,7 @@ function App() {
 
     try {
       const updated = await api.updateBookingDetails(selectedBooking.phone, selectedBooking.email, {
+        name: detailForm.name.trim(),
         className: detailForm.className.trim(),
         trainer: detailForm.trainer.trim(),
         date: detailForm.date.trim(),
@@ -652,7 +675,7 @@ function App() {
               <div className="detail-panel-header">
                 <div>
                   <p className="section-kicker">Booking Detail</p>
-                  <h3>{selectedBooking.name}</h3>
+                  <h3>{detailForm.name || selectedBooking.name}</h3>
                 </div>
                 <button
                   className="detail-close"
@@ -679,6 +702,14 @@ function App() {
                   <strong>{selectedBooking.email}</strong>
                 </div>
                 <label className="detail-field">
+                  <span>姓名</span>
+                  <input
+                    value={detailForm.name}
+                    onChange={(event) => updateDetailForm('name', event.target.value)}
+                    placeholder="例如：王小美"
+                  />
+                </label>
+                <label className="detail-field">
                   <span>課程</span>
                   <input
                     value={detailForm.className}
@@ -697,10 +728,11 @@ function App() {
                 <label className="detail-field">
                   <span>預約時間</span>
                   <input
-                    value={detailForm.date}
-                    onChange={(event) => updateDetailForm('date', event.target.value)}
-                    placeholder="例如：2026/03/20 19:30"
+                    type="datetime-local"
+                    value={toDateTimeInputValue(detailForm.date)}
+                    onChange={(event) => updateDetailForm('date', fromDateTimeInputValue(event.target.value))}
                   />
+                  <small className="detail-help">儲存格式會自動轉成 YYYY/MM/DD HH:mm</small>
                 </label>
               </div>
 
@@ -709,6 +741,7 @@ function App() {
                   className="secondary-btn detail-action-btn"
                   onClick={() =>
                     setDetailForm({
+                      name: selectedBooking.name,
                       className: selectedBooking.className,
                       trainer: selectedBooking.trainer,
                       date: selectedBooking.date,
