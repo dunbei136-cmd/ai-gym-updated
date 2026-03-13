@@ -139,25 +139,25 @@ const server = http.createServer(async (req, res) => {
 
         const session = upsertLineSession(textEvent.userId, {})
         const input = textEvent.text
-        let replyText = '你可以直接輸入「我要預約」，我會一步一步幫你收集資料。'
+        let replyText = '你可以直接跟我說「我要預約」，我會用最簡單的方式幫你完成，不用一次把資料全丟給我。'
 
         if (input.includes('取消') || input.includes('重來')) {
           resetLineSession(textEvent.userId)
-          replyText = '好的，我已經幫你重置流程；如果要重新開始，直接輸入「我要預約」就可以。'
+          replyText = '沒問題，我先幫你把這輪流程清掉；你等等直接再說一次「我要預約」就好。'
         } else if (input.includes('停車')) {
-          replyText = '有，示意場館設定為附近有合作停車場與路邊停車格；第一次來建議提早 10 分鐘到。'
+          replyText = '有，附近有合作停車場跟路邊停車格；如果你是第一次來，我會建議提早 10 分鐘到，找車位跟報到都比較從容。'
         } else if (input.includes('預約')) {
           upsertLineSession(textEvent.userId, { step: 'ask_name', form: {} })
-          replyText = '好的，先幫我你的姓名。'
+          replyText = '好，我先幫你安排。先跟我說你的姓名就可以。'
         } else if (session.step === 'ask_name') {
           upsertLineSession(textEvent.userId, { step: 'ask_phone', form: { name: input } })
-          replyText = '收到，接下來請提供你的手機號碼。'
+          replyText = `收到，${input} 你好。接著給我你的手機號碼，我幫你把預約資料補齊。`
         } else if (session.step === 'ask_phone') {
           if (!isLikelyPhone(input)) {
-            replyText = '手機格式看起來不太對，請再輸入一次手機號碼。'
+            replyText = '我這邊看手機格式有點怪，麻煩你再傳一次手機號碼給我。'
           } else {
             upsertLineSession(textEvent.userId, { step: 'ask_email', form: { phone: input.replace(/[^\d]/g, '') } })
-            replyText = '好，接著請提供 Email。'
+            replyText = '好，手機收到了。再給我一個 Email，之後方便幫你確認預約。'
           }
         } else if (session.step === 'ask_email') {
           if (!isLikelyEmail(input)) {
