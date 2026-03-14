@@ -105,3 +105,15 @@ npm run smoke:api
 
 如果只看 demo / MVP 目標，已經接近完成。
 如果要變成 production，下一步重點是安全性、權限與外部整合。
+
+## 建議下一步
+
+請優先看：
+- `docs/DEPLOYMENT.md`
+- `docs/REGRESSION_CHECKLIST.md`
+- `docs/NEXT_STEPS.md`
+
+其中：
+- `DEPLOYMENT.md` 說明怎麼上線
+- `REGRESSION_CHECKLIST.md` 說明上線後怎麼驗
+- `NEXT_STEPS.md` 說明接下來該先做哪一批工作
