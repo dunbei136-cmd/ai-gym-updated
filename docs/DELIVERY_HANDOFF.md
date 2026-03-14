@@ -66,6 +66,11 @@
 - 登入後是否恢復可操作
 - 聊天是否仍會出現明顯 fallback 錯亂
 
+### 4. Deploy / Live 驗證
+- 先看 `docs/DEPLOYMENT.md`
+- 再照 `docs/REGRESSION_CHECKLIST.md` 跑 deploy 後 smoke
+- 特別注意 Railway source repo / branch / root directory 是否正確
+
 ## 本機指令
 
 ```bash
