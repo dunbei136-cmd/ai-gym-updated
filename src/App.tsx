@@ -184,6 +184,7 @@ function App() {
   })
   const [bookings, setBookings] = useState<BookingRecord[]>([])
   const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null)
+  const [healthLoading, setHealthLoading] = useState(false)
   const [lookupResult, setLookupResult] = useState<BookingRecord | null>(null)
   const [lookupTouched, setLookupTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -229,11 +230,23 @@ function App() {
   const [dragBookingKey, setDragBookingKey] = useState('')
   const [dragStageTarget, setDragStageTarget] = useState<LeadStage | ''>('')
 
+  const loadHealthSnapshot = useCallback(async () => {
+    setHealthLoading(true)
+    try {
+      const snapshot = await api.getHealth()
+      setHealthSnapshot(snapshot)
+    } catch {
+      setHealthSnapshot(null)
+    } finally {
+      setHealthLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     setAuthLoading(true)
     void api.getSession().then(setAuthSession).finally(() => setAuthLoading(false))
 
-    void api.getHealth().then(setHealthSnapshot).catch(() => undefined)
+    void loadHealthSnapshot()
 
     setLoadingBookings(true)
     void api
@@ -241,7 +254,7 @@ function App() {
       .then(setBookings)
       .catch(() => setError('載入 booking 資料失敗'))
       .finally(() => setLoadingBookings(false))
-  }, [])
+  }, [loadHealthSnapshot])
 
   useEffect(() => {
     if (!lookupPhone.trim() || !lookupEmail.trim()) return
@@ -1619,7 +1632,12 @@ function App() {
                   <p className="section-kicker">Admin Debug</p>
                   <h3>Live health / metrics snapshot</h3>
                 </div>
-                <p className="section-note">用來快速確認目前 API、validation 與 LINE webhook 狀態。</p>
+                <div>
+                  <p className="section-note">用來快速確認目前 API、validation 與 LINE webhook 狀態。</p>
+                  <button className="secondary-btn" onClick={() => void loadHealthSnapshot()} disabled={healthLoading}>
+                    {healthLoading ? '更新中...' : 'Refresh health'}
+                  </button>
+                </div>
               </div>
               <div className="admin-stats-grid">
                 <div className="admin-stat-card">
