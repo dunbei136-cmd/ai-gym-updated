@@ -6,11 +6,18 @@ import { deleteBooking, getDbMeta, listBookings, lookupBooking, updateBookingDet
 import { buildLineTextReply, extractLineTextEvent, getLineConfigMeta, isLineConfigured, parseLineWebhook, sendLineReply, verifyLineSignature } from './integrations/line.mjs'
 import { isLikelyEmail, isLikelyPhone, normalizeLineGoal, normalizeLineSlot, resetLineSession, upsertLineSession } from './line-session.mjs'
 import { generateChatReply, getAiMeta } from './ai.mjs'
+import {
+  authLoginSchema,
+  bookingLookupSchema,
+  chatMessageSchema,
+  createBookingSchema,
+  deleteBookingSchema,
+  parseBody,
+  updateBookingDetailsSchema,
+  updateBookingStatusSchema,
+} from './validation.mjs'
 
 const port = Number(process.env.PORT || 8787)
-const validStatuses = new Set(['待回覆', '已確認', '已完成'])
-const validStages = new Set(['新名單', '已聯繫', '已預約體驗', '已成交', '流失'])
-const validSources = new Set(['網站表單', 'AI 聊天', 'LINE', '電話', 'Walk-in'])
 
 function json(res, status, data) {
   res.writeHead(status, {
@@ -22,14 +29,19 @@ function json(res, status, data) {
   res.end(JSON.stringify(data))
 }
 
-function sendError(res, status, code, message) {
+function sendError(res, status, code, message, details) {
   json(res, status, {
     ok: false,
     error: {
       code,
       message,
+      ...(details ? { details } : {}),
     },
   })
+}
+
+function sendValidationError(res, validationError) {
+  sendError(res, 400, validationError.code, validationError.message, validationError.details)
 }
 
 function resolveProgram(goal) {
@@ -282,14 +294,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/auth/login') {
     try {
       const body = await collectBody(req)
-      const username = typeof body.username === 'string' ? body.username.trim() : ''
-      const password = typeof body.password === 'string' ? body.password : ''
-
-      if (!username || !password) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'username and password are required')
+      const parsed = parseBody(authLoginSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
+      const { username, password } = parsed.data
       const result = authenticateAdmin(username, password)
       if (!result) {
         sendError(res, 401, 'INVALID_CREDENTIALS', '帳號或密碼錯誤')
@@ -329,9 +340,16 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/bookings/lookup') {
-    const phone = (url.searchParams.get('phone') || '').trim()
-    const email = (url.searchParams.get('email') || '').trim().toLowerCase()
-    const found = lookupBooking(phone, email)
+    const parsed = parseBody(bookingLookupSchema, {
+      phone: url.searchParams.get('phone') || '',
+      email: url.searchParams.get('email') || '',
+    })
+    if (!parsed.ok) {
+      sendValidationError(res, parsed.error)
+      return
+    }
+
+    const found = lookupBooking(parsed.data.phone, parsed.data.email)
 
     if (!found) {
       sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
@@ -345,19 +363,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/bookings') {
     try {
       const body = await collectBody(req)
-      const { name = '', phone = '', email = '', goal = '減脂 / 新手入門', preferredSlot = '平日晚上' } = body
-
-      if (!name.trim() || !phone.trim() || !email.trim()) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'name, phone, email are required')
+      const parsed = parseBody(createBookingSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
+      const { name, phone, email, goal, preferredSlot } = parsed.data
       const now = new Date().toISOString()
       const program = resolveProgram(goal)
       const booking = upsertBooking({
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email.trim().toLowerCase(),
+        name,
+        phone,
+        email,
         className: program.className,
         trainer: program.trainer,
         date: resolveSlot(preferredSlot),
@@ -384,18 +402,13 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const body = await collectBody(req)
-      const { phone = '', email = '', status = '' } = body
-
-      if (!phone.trim() || !email.trim() || !status) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'phone, email, status are required')
+      const parsed = parseBody(updateBookingStatusSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
-      if (!validStatuses.has(status)) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'status is invalid')
-        return
-      }
-
+      const { phone, email, status } = parsed.data
       const updated = updateBookingStatus(phone, email, status)
       if (!updated) {
         sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
@@ -415,48 +428,14 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const body = await collectBody(req)
-      const {
-        phone = '',
-        email = '',
-        name = '',
-        className = '',
-        trainer = '',
-        date = '',
-        notes = '',
-        stage = '新名單',
-        source = '網站表單',
-        assignee = '未指派',
-        nextFollowUpAt = '',
-        activityLog = [],
-      } = body
-
-      if (!phone.trim() || !email.trim() || !name.trim() || !className.trim() || !trainer.trim() || !date.trim()) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'phone, email, name, className, trainer, date are required')
+      const parsed = parseBody(updateBookingDetailsSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
-      if (!validStages.has(stage)) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'stage is invalid')
-        return
-      }
-
-      if (!validSources.has(source)) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'source is invalid')
-        return
-      }
-
-      const updated = updateBookingDetails(phone, email, {
-        name: name.trim(),
-        className: className.trim(),
-        trainer: trainer.trim(),
-        date: date.trim(),
-        notes: typeof notes === 'string' ? notes.trim() : '',
-        stage,
-        source,
-        assignee: typeof assignee === 'string' ? assignee.trim() || '未指派' : '未指派',
-        nextFollowUpAt: typeof nextFollowUpAt === 'string' ? nextFollowUpAt : '',
-        activityLog: Array.isArray(activityLog) ? activityLog.filter((entry) => typeof entry === 'string') : [],
-      })
+      const { phone, email, ...patch } = parsed.data
+      const updated = updateBookingDetails(phone, email, patch)
       if (!updated) {
         sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
         return
@@ -474,13 +453,13 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const body = await collectBody(req)
-      const { phone = '', email = '' } = body
-
-      if (!phone.trim() || !email.trim()) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'phone and email are required')
+      const parsed = parseBody(deleteBookingSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
+      const { phone, email } = parsed.data
       const deleted = deleteBooking(phone, email)
       if (!deleted) {
         sendError(res, 404, 'BOOKING_NOT_FOUND', 'Booking not found')
@@ -497,12 +476,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url.pathname === '/chat') {
     try {
       const body = await collectBody(req)
-      if (typeof body.message !== 'string' || body.message.trim().length < 2) {
-        sendError(res, 400, 'VALIDATION_ERROR', 'message must be at least 2 characters')
+      const parsed = parseBody(chatMessageSchema, body)
+      if (!parsed.ok) {
+        sendValidationError(res, parsed.error)
         return
       }
 
-      const result = await generateChatReply(body.message)
+      const result = await generateChatReply(parsed.data.message)
       json(res, 200, result)
     } catch (error) {
       sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to process chat')
