@@ -56,6 +56,8 @@
 - demo / HTTP API mode 切換
 - SQLite 後端
 - `/chat` 真 AI + fallback 結構
+- Railway backend 已接 GitHub source（`dunbei136-cmd/ai-gym-updated`）
+- LINE webhook live 路徑已確認並完成一次實際修復部署
 
 ### QA
 
