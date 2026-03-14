@@ -16,6 +16,7 @@ import {
   updateBookingDetailsSchema,
   updateBookingStatusSchema,
 } from './validation.mjs'
+import { getMetrics, recordChatResult, recordLineReply, recordLineWebhook, recordValidationError } from './metrics.mjs'
 
 const port = Number(process.env.PORT || 8787)
 
@@ -40,7 +41,8 @@ function sendError(res, status, code, message, details) {
   })
 }
 
-function sendValidationError(res, validationError) {
+function sendValidationError(res, route, validationError) {
+  recordValidationError(route)
   sendError(res, 400, validationError.code, validationError.message, validationError.details)
 }
 
@@ -155,7 +157,14 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === 'GET' && url.pathname === '/health') {
-    json(res, 200, { ok: true, service: 'pulsefit-api', db: getDbMeta(), ai: getAiMeta(), line: getLineConfigMeta() })
+    json(res, 200, {
+      ok: true,
+      service: 'pulsefit-api',
+      db: getDbMeta(),
+      ai: getAiMeta(),
+      line: getLineConfigMeta(),
+      metrics: getMetrics(),
+    })
     return
   }
 
@@ -188,6 +197,7 @@ const server = http.createServer(async (req, res) => {
 
       const body = JSON.parse(rawBody)
       const events = parseLineWebhook(body)
+      recordLineWebhook(events.length)
       appendAuditEntry({ type: 'line.webhook', actor: 'line', detail: `events=${events.length}` })
 
       for (const event of events) {
@@ -276,6 +286,7 @@ const server = http.createServer(async (req, res) => {
         }
 
         await sendLineReply(textEvent.replyToken, [buildLineTextReply(replyText)])
+        recordLineReply()
       }
 
       json(res, 200, { ok: true, received: events.length })
@@ -296,7 +307,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(authLoginSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/auth/login', parsed.error)
         return
       }
 
@@ -345,7 +356,7 @@ const server = http.createServer(async (req, res) => {
       email: url.searchParams.get('email') || '',
     })
     if (!parsed.ok) {
-      sendValidationError(res, parsed.error)
+      sendValidationError(res, '/bookings/lookup', parsed.error)
       return
     }
 
@@ -365,7 +376,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(createBookingSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/bookings', parsed.error)
         return
       }
 
@@ -404,7 +415,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(updateBookingStatusSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/bookings/status', parsed.error)
         return
       }
 
@@ -430,7 +441,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(updateBookingDetailsSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/bookings/details', parsed.error)
         return
       }
 
@@ -455,7 +466,7 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(deleteBookingSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/bookings', parsed.error)
         return
       }
 
@@ -478,11 +489,12 @@ const server = http.createServer(async (req, res) => {
       const body = await collectBody(req)
       const parsed = parseBody(chatMessageSchema, body)
       if (!parsed.ok) {
-        sendValidationError(res, parsed.error)
+        sendValidationError(res, '/chat', parsed.error)
         return
       }
 
       const result = await generateChatReply(parsed.data.message)
+      recordChatResult(result.mode)
       json(res, 200, result)
     } catch (error) {
       sendError(res, 400, 'INVALID_REQUEST', error.message || 'Failed to process chat')
