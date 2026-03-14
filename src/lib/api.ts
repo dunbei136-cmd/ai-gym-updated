@@ -19,6 +19,23 @@ function writeAuthToken(token: string) {
   window.localStorage.setItem(authStorageKey, token)
 }
 
+function formatApiError(data: any, status: number) {
+  const details = Array.isArray(data?.error?.details)
+    ? data.error.details
+        .map((item: { path?: string; message?: string }) => {
+          if (!item?.message) return ''
+          return item.path && item.path !== 'root' ? `${item.path}: ${item.message}` : item.message
+        })
+        .filter(Boolean)
+    : []
+
+  if (details.length > 0) {
+    return details.join('；')
+  }
+
+  return data?.error?.message ?? data?.error ?? data?.message ?? `Request failed: ${status}`
+}
+
 function createHttpApi(): GymApi {
   const fetchJson = async (path: string, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
@@ -34,12 +51,7 @@ function createHttpApi(): GymApi {
 
     const data = await response.json().catch(() => null)
     if (!response.ok) {
-      const errorMessage =
-        data?.error?.message ??
-        data?.error ??
-        data?.message ??
-        `Request failed: ${response.status}`
-      throw new Error(errorMessage)
+      throw new Error(formatApiError(data, response.status))
     }
     return data
   }
@@ -91,7 +103,7 @@ function createHttpApi(): GymApi {
       if (response.status === 404) return null
       const data = await response.json().catch(() => null)
       if (!response.ok) {
-        throw new Error(data?.error?.message ?? data?.error ?? data?.message ?? `Request failed: ${response.status}`)
+        throw new Error(formatApiError(data, response.status))
       }
       return data
     },
