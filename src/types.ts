@@ -65,7 +65,63 @@ export type Testimonial = {
   quote: string
 }
 
+export type HealthMetrics = {
+  chat: {
+    total: number
+    fallback: number
+    openai: number
+    gemini: number
+    lastMessageAt: string
+    fallbackRate: number
+  }
+  validation: {
+    total: number
+    byRoute: Record<string, number>
+    lastErrorAt: string
+    lastRoute: string
+  }
+  line: {
+    webhooks: number
+    events: number
+    replies: number
+    lastWebhookAt: string
+  }
+}
+
+export type HealthSnapshot = {
+  ok: boolean
+  service: string
+  db: {
+    driver: string
+    path: string
+    bookings: number
+  }
+  ai: {
+    strategy: string
+    configuredProviders: {
+      openai: boolean
+      gemini: boolean
+    }
+    models: {
+      openai: string | null
+      gemini: string | null
+    }
+    cache: {
+      ttlMs: number
+      maxEntries: number
+      size: number
+    }
+  }
+  line: {
+    configured: boolean
+    hasChannelAccessToken: boolean
+    hasChannelSecret: boolean
+  }
+  metrics?: HealthMetrics
+}
+
 export type GymApi = {
+  getHealth: () => Promise<HealthSnapshot>
   getSession: () => Promise<AuthSession | null>
   login: (credentials: AuthCredentials) => Promise<AuthSession>
   logout: () => Promise<void>

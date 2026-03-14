@@ -1,5 +1,5 @@
 import { demoApi } from './demoApi'
-import type { AuthCredentials, GymApi } from '../types'
+import type { AuthCredentials, GymApi, HealthSnapshot } from '../types'
 
 const mode = import.meta.env.VITE_API_MODE ?? 'demo'
 const baseUrl = import.meta.env.VITE_API_BASE_URL
@@ -57,6 +57,10 @@ function createHttpApi(): GymApi {
   }
 
   return {
+    async getHealth() {
+      return fetchJson('/health') as Promise<HealthSnapshot>
+    },
+
     async getSession() {
       try {
         const data = await fetchJson('/auth/session')

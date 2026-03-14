@@ -2,7 +2,7 @@ import './App.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { faqItems, plans, quickReplies, testimonials } from './data/content'
 import { api, apiModeLabel } from './lib/api'
-import type { AuthSession, BookingDetailPatch, BookingRecord, BookingStatus, ChatMessage, LeadForm, LeadSource, LeadStage } from './types'
+import type { AuthSession, BookingDetailPatch, BookingRecord, BookingStatus, ChatMessage, HealthSnapshot, LeadForm, LeadSource, LeadStage } from './types'
 
 const stageOptions: LeadStage[] = ['新名單', '已聯繫', '已預約體驗', '已成交', '流失']
 const sourceOptions: LeadSource[] = ['網站表單', 'AI 聊天', 'LINE', '電話', 'Walk-in']
@@ -183,6 +183,7 @@ function App() {
     preferredSlot: '平日晚上',
   })
   const [bookings, setBookings] = useState<BookingRecord[]>([])
+  const [healthSnapshot, setHealthSnapshot] = useState<HealthSnapshot | null>(null)
   const [lookupResult, setLookupResult] = useState<BookingRecord | null>(null)
   const [lookupTouched, setLookupTouched] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -231,6 +232,8 @@ function App() {
   useEffect(() => {
     setAuthLoading(true)
     void api.getSession().then(setAuthSession).finally(() => setAuthLoading(false))
+
+    void api.getHealth().then(setHealthSnapshot).catch(() => undefined)
 
     setLoadingBookings(true)
     void api
@@ -1608,6 +1611,54 @@ function App() {
               <span>待追蹤</span>
             </button>
           </div>
+
+          {healthSnapshot ? (
+            <div className="section-card glass-card">
+              <div className="section-heading compact">
+                <div>
+                  <p className="section-kicker">Admin Debug</p>
+                  <h3>Live health / metrics snapshot</h3>
+                </div>
+                <p className="section-note">用來快速確認目前 API、validation 與 LINE webhook 狀態。</p>
+              </div>
+              <div className="admin-stats-grid">
+                <div className="admin-stat-card">
+                  <strong>{healthSnapshot.service}</strong>
+                  <span>服務名稱</span>
+                </div>
+                <div className="admin-stat-card">
+                  <strong>{healthSnapshot.db.bookings}</strong>
+                  <span>DB bookings</span>
+                </div>
+                <div className="admin-stat-card">
+                  <strong>{healthSnapshot.metrics?.chat.total ?? 0}</strong>
+                  <span>chat requests</span>
+                </div>
+                <div className="admin-stat-card">
+                  <strong>{healthSnapshot.metrics?.validation.total ?? 0}</strong>
+                  <span>validation errors</span>
+                </div>
+              </div>
+              <div className="feature-list slim">
+                <div>
+                  <strong>Chat fallback rate</strong>
+                  <p>{healthSnapshot.metrics?.chat.fallbackRate ?? 0}</p>
+                </div>
+                <div>
+                  <strong>Last validation route</strong>
+                  <p>{healthSnapshot.metrics?.validation.lastRoute || '尚無資料'}</p>
+                </div>
+                <div>
+                  <strong>LINE replies</strong>
+                  <p>{healthSnapshot.metrics?.line.replies ?? 0}</p>
+                </div>
+                <div>
+                  <strong>AI provider status</strong>
+                  <p>OpenAI: {healthSnapshot.ai.configuredProviders.openai ? 'on' : 'off'} / Gemini: {healthSnapshot.ai.configuredProviders.gemini ? 'on' : 'off'}</p>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           <div className="pipeline-board">
             {pipelineColumns.map((column) => (

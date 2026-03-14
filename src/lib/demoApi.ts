@@ -1,5 +1,5 @@
 import { seedBookingRecords, storageKey } from '../data/content'
-import type { AuthCredentials, AuthSession, BookingDetailPatch, BookingRecord, GymApi, LeadForm, LeadSource, LeadStage } from '../types'
+import type { AuthCredentials, AuthSession, BookingDetailPatch, BookingRecord, GymApi, HealthSnapshot, LeadForm, LeadSource, LeadStage } from '../types'
 
 const authStorageKey = `${storageKey}-auth-session`
 let lastDemoReply = ''
@@ -324,6 +324,61 @@ function buildAssistantReply(message: string) {
 }
 
 export const demoApi: GymApi = {
+  async getHealth() {
+    return {
+      ok: true,
+      service: 'pulsefit-demo-api',
+      db: {
+        driver: 'localStorage',
+        path: 'browser://localStorage',
+        bookings: listDemoBookings().length,
+      },
+      ai: {
+        strategy: 'demo',
+        configuredProviders: {
+          openai: false,
+          gemini: false,
+        },
+        models: {
+          openai: null,
+          gemini: null,
+        },
+        cache: {
+          ttlMs: 0,
+          maxEntries: 0,
+          size: 0,
+        },
+      },
+      line: {
+        configured: false,
+        hasChannelAccessToken: false,
+        hasChannelSecret: false,
+      },
+      metrics: {
+        chat: {
+          total: 0,
+          fallback: 0,
+          openai: 0,
+          gemini: 0,
+          lastMessageAt: '',
+          fallbackRate: 0,
+        },
+        validation: {
+          total: 0,
+          byRoute: {},
+          lastErrorAt: '',
+          lastRoute: '',
+        },
+        line: {
+          webhooks: 0,
+          events: 0,
+          replies: 0,
+          lastWebhookAt: '',
+        },
+      },
+    } satisfies HealthSnapshot
+  },
+
   async getSession() {
     return readDemoSession()
   },
