@@ -60,6 +60,8 @@
 - LINE webhook live 路徑已確認並完成一次實際修復部署
 - backend request validation schema 已建立（含 chat / booking / auth / lookup / admin mutation）
 - API validation error contract 已統一為 `VALIDATION_ERROR + details`
+- client HTTP adapter 已能格式化並顯示 validation details，而不只是一句模糊錯誤
+- live Railway API 已驗到新的 validation contract 生效
 
 ### QA
 
