@@ -119,6 +119,7 @@ GET https://pulsefit-backend-production.up.railway.app/health
 - service 正常
 - DB 正常
 - LINE config 仍在
+- `metrics` 有回來（可用來看 chat / validation / LINE webhook 近期狀態）
 
 ---
 
