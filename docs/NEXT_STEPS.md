@@ -126,9 +126,13 @@
 因為這是最直接會被使用者看到的體感，也是剛修好的區塊。
 
 ### 2. 補更完整的 request validation / error contract
-目標：
-- 後端進入 production 前先把 API 邊界站穩
-- 把壞資料、空資料、錯格式早點擋掉
+目前狀態：
+- 基礎 schema 與一致的 `VALIDATION_ERROR + details` 已補上
+
+剩餘目標：
+- 擴大到更多 edge case
+- 補更完整的 request/response 文件
+- 讓前端更好吃這份 error contract
 
 ### 3. 補 monitoring / admin debug 訊號
 目標：

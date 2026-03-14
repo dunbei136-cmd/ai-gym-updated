@@ -58,6 +58,8 @@
 - `/chat` 真 AI + fallback 結構
 - Railway backend 已接 GitHub source（`dunbei136-cmd/ai-gym-updated`）
 - LINE webhook live 路徑已確認並完成一次實際修復部署
+- backend request validation schema 已建立（含 chat / booking / auth / lookup / admin mutation）
+- API validation error contract 已統一為 `VALIDATION_ERROR + details`
 
 ### QA
 
